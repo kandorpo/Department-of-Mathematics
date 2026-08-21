@@ -36,6 +36,7 @@ import {
 import { STUDENT_RESOURCES, DEFAULT_STUDENT_PROFILES } from '../data/departmentData';
 import { StudentProfile } from '../types';
 import { useDepartmentData } from '../context/DataContext';
+import { downloadStudyResourcePDF, downloadClassRoutinePDF } from '../utils/downloadHelper';
 
 interface StudentPortalModalProps {
   isOpen: boolean;
@@ -1112,11 +1113,11 @@ export const StudentPortalModal: React.FC<StudentPortalModalProps> = ({ isOpen, 
                   <div className="pt-2 flex items-center justify-between border-t border-slate-200/60 text-xs">
                     <span className="text-[10px] font-mono text-slate-400">{item.fileType}</span>
                     <button
-                      onClick={() => alert(`Downloading official document: ${item.title}`)}
-                      className="px-3 py-1.5 bg-blue-900 hover:bg-blue-950 text-white text-[11px] font-bold rounded-lg flex items-center gap-1 transition-colors cursor-pointer"
+                      onClick={() => downloadStudyResourcePDF(item)}
+                      className="px-3 py-1.5 bg-blue-900 hover:bg-blue-950 text-white text-[11px] font-bold rounded-lg flex items-center gap-1 transition-colors cursor-pointer shadow-xs active:scale-95"
                     >
                       <Download className="w-3 h-3" />
-                      <span>Download</span>
+                      <span>Download PDF</span>
                     </button>
                   </div>
                 </div>
@@ -1128,7 +1129,7 @@ export const StudentPortalModal: React.FC<StudentPortalModalProps> = ({ isOpen, 
         {/* TAB 3: PERSONALIZED CLASS ROUTINE (Only after login, filtered by student's semester) */}
         {activeTab === 'routine' && currentStudent && (
           <div className="space-y-4 text-xs">
-            <div className="p-4 rounded-xl bg-blue-50/80 border border-blue-200 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+            <div className="p-4 rounded-xl bg-blue-50/80 border border-blue-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div>
                 <span className="font-bold text-blue-950 text-sm block">
                   Class Routine for Registered Semester: {currentStudent.semester}
@@ -1137,9 +1138,19 @@ export const StudentPortalModal: React.FC<StudentPortalModalProps> = ({ isOpen, 
                   Secure academic schedule mapped to your student profile • Autumn Semester 2026
                 </p>
               </div>
-              <span className="text-xs font-mono font-bold bg-white text-blue-900 px-2.5 py-1 rounded border border-blue-200 self-start sm:self-auto">
-                {currentStudent.program}
-              </span>
+              <div className="flex items-center gap-2 self-start sm:self-auto">
+                <span className="text-xs font-mono font-bold bg-white text-blue-900 px-2.5 py-1 rounded border border-blue-200">
+                  {currentStudent.program}
+                </span>
+                <button
+                  onClick={() => downloadClassRoutinePDF(routineSlots, currentStudent.semester || 'Semester Routine')}
+                  className="px-3 py-1.5 bg-blue-900 hover:bg-blue-950 text-white text-xs font-bold rounded-lg flex items-center gap-1.5 transition-colors cursor-pointer shadow-xs active:scale-95"
+                  title="Download Routine PDF to Device"
+                >
+                  <Download className="w-3.5 h-3.5" />
+                  <span>Save Timetable PDF</span>
+                </button>
+              </div>
             </div>
 
             {(() => {

@@ -1,0 +1,35 @@
+{
+  "entities": {
+    "cms_data": {
+      "title": "Department CMS Data",
+      "description": "Master dataset for department portal",
+      "type": "object",
+      "properties": {
+        "departmentInfo": { "type": "object" },
+        "stats": { "type": "array" },
+        "faculty": { "type": "array" },
+        "courses": { "type": "array" },
+        "notices": { "type": "array" },
+        "events": { "type": "array" },
+        "researchAreas": { "type": "array" },
+        "researchProjects": { "type": "array" },
+        "publications": { "type": "array" },
+        "achievements": { "type": "array" },
+        "gallery": { "type": "array" },
+        "departmentStudents": { "type": "array" },
+        "blogs": { "type": "array" },
+        "registeredStudentProfiles": { "type": "array" },
+        "portalResources": { "type": "array" },
+        "routineSlots": { "type": "array" },
+        "studentGrievances": { "type": "array" }
+      },
+      "required": ["departmentInfo"]
+    }
+  },
+  "firestore": {
+    "/department_cms/{docId}": {
+      "schema": "cms_data",
+      "description": "Department portal master collection"
+    }
+  }
+}

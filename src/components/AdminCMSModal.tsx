@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   X,
   Lock,
@@ -158,6 +158,13 @@ export const AdminCMSModal: React.FC = () => {
   // General info form local state
   const [generalForm, setGeneralForm] = useState(departmentInfo);
 
+  // Sync generalForm whenever departmentInfo changes or admin modal opens
+  useEffect(() => {
+    if (isAdminOpen) {
+      setGeneralForm(departmentInfo);
+    }
+  }, [departmentInfo, isAdminOpen]);
+
   // File import ref
   const importFileRef = useRef<HTMLInputElement>(null);
 
@@ -166,6 +173,45 @@ export const AdminCMSModal: React.FC = () => {
   const showStatus = (msg: string) => {
     setStatusMsg(msg);
     setTimeout(() => setStatusMsg(null), 3000);
+  };
+
+  const compressAndReadImage = (file: File, callback: (dataUrl: string) => void) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const src = e.target?.result as string;
+      if (!src) return;
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        const MAX_DIM = 800;
+        let width = img.width;
+        let height = img.height;
+        if (width > height) {
+          if (width > MAX_DIM) {
+            height *= MAX_DIM / width;
+            width = MAX_DIM;
+          }
+        } else {
+          if (height > MAX_DIM) {
+            width *= MAX_DIM / height;
+            height = MAX_DIM;
+          }
+        }
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        if (ctx) {
+          ctx.drawImage(img, 0, 0, width, height);
+          const compressed = canvas.toDataURL('image/jpeg', 0.6);
+          callback(compressed);
+        } else {
+          callback(src);
+        }
+      };
+      img.onerror = () => callback(src);
+      img.src = src;
+    };
+    reader.readAsDataURL(file);
   };
 
   const handleLogin = (e: React.FormEvent) => {
@@ -195,31 +241,29 @@ export const AdminCMSModal: React.FC = () => {
 
   const handleFacultyImageUpload = (file: File | undefined) => {
     if (!file || !editingFaculty) return;
-
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      const dataUrl = event.target?.result as string;
+    compressAndReadImage(file, (dataUrl) => {
       setEditingFaculty({ ...editingFaculty, image: dataUrl });
       showStatus(`${file.name} uploaded and set as profile picture.`);
-    };
-    reader.readAsDataURL(file);
+    });
   };
 
   const handleFileUpload = (file: File | undefined, imageKey: 'logoUrl' | 'imageUrls') => {
     if (!file) return;
 
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      const dataUrl = event.target?.result as string;
+    compressAndReadImage(file, (dataUrl) => {
       if (imageKey === 'imageUrls') {
-        setGeneralForm({ ...generalForm, imageUrls: [...generalForm.imageUrls, dataUrl] });
+        const updatedImages = [...(generalForm.imageUrls || []), dataUrl];
+        const updatedForm = { ...generalForm, imageUrls: updatedImages };
+        setGeneralForm(updatedForm);
+        updateDepartmentInfo(updatedForm);
         showStatus(`${file.name} uploaded and added to header images.`);
       } else {
-        setGeneralForm({ ...generalForm, [imageKey]: dataUrl });
-        showStatus(`${file.name} uploaded and set as logo.`);
+        const updatedForm = { ...generalForm, [imageKey]: dataUrl };
+        setGeneralForm(updatedForm);
+        updateDepartmentInfo(updatedForm);
+        showStatus(`${file.name} uploaded and updated.`);
       }
-    };
-    reader.readAsDataURL(file);
+    });
   };
 
   const handleExportJson = () => {
@@ -713,23 +757,36 @@ export const AdminCMSModal: React.FC = () => {
                     <div>
                       <label className="block font-bold text-slate-700 mb-2">Department Header Images</label>
                       <div className="flex flex-wrap gap-2 mb-2">
-                        {generalForm.imageUrls.map((url, index) => (
-                          <div key={index} className="relative w-16 h-16 border rounded overflow-hidden">
-                            <img src={url} alt="Header" className="w-full h-full object-cover" />
+                        {(generalForm.imageUrls || []).map((url, index) => (
+                          <div key={index} className="relative w-20 h-20 border border-slate-200 rounded-lg overflow-hidden group shadow-sm bg-slate-100">
+                            <img src={url} alt={`Header ${index + 1}`} className="w-full h-full object-cover" />
                             <button
-                              onClick={() => setGeneralForm({ ...generalForm, imageUrls: generalForm.imageUrls.filter((_, i) => i !== index) })}
-                              className="absolute top-0 right-0 bg-red-500 text-white p-0.5"
+                              type="button"
+                              onClick={() => {
+                                const updatedImages = generalForm.imageUrls.filter((_, i) => i !== index);
+                                const updatedForm = { ...generalForm, imageUrls: updatedImages };
+                                setGeneralForm(updatedForm);
+                                updateDepartmentInfo(updatedForm);
+                                showStatus('Header image removed.');
+                              }}
+                              className="absolute top-1 right-1 bg-red-600 text-white rounded-full p-1 shadow hover:bg-red-700 transition-colors cursor-pointer"
+                              title="Remove image"
                             >
-                              x
+                              <X className="w-3.5 h-3.5" />
                             </button>
                           </div>
                         ))}
                       </div>
                       <input
                         type="text"
-                        value={generalForm.imageUrls.join(', ')}
-                        onChange={(e) => setGeneralForm({ ...generalForm, imageUrls: e.target.value.split(',').map(s => s.trim()).filter(Boolean) })}
-                        className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl outline-none focus:bg-white focus:ring-2 focus:ring-blue-900 mb-2"
+                        value={(generalForm.imageUrls || []).join(', ')}
+                        onChange={(e) => {
+                          const updatedImages = e.target.value.split(',').map(s => s.trim()).filter(Boolean);
+                          const updatedForm = { ...generalForm, imageUrls: updatedImages };
+                          setGeneralForm(updatedForm);
+                          updateDepartmentInfo(updatedForm);
+                        }}
+                        className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl outline-none focus:bg-white focus:ring-2 focus:ring-blue-900 mb-2 text-xs font-mono"
                         placeholder="Comma separated URLs..."
                       />
                       <div 
@@ -807,14 +864,10 @@ export const AdminCMSModal: React.FC = () => {
                         e.preventDefault();
                         const file = e.dataTransfer.files?.[0];
                         if (file && file.type.startsWith('image/')) {
-                          const reader = new FileReader();
-                          reader.onload = (event) => {
-                            if (event.target?.result) {
-                              setGeneralForm({ ...generalForm, aboutImageUrl: event.target.result as string });
-                              showStatus('About feature image uploaded successfully from device.');
-                            }
-                          };
-                          reader.readAsDataURL(file);
+                          compressAndReadImage(file, (dataUrl) => {
+                            setGeneralForm({ ...generalForm, aboutImageUrl: dataUrl });
+                            showStatus('About feature image uploaded successfully from device.');
+                          });
                         }
                       }}
                       className="border-2 border-dashed border-slate-300 hover:border-blue-900 rounded-xl p-4 text-center bg-slate-50 transition-colors cursor-pointer relative group"
@@ -825,14 +878,10 @@ export const AdminCMSModal: React.FC = () => {
                         onChange={(e) => {
                           const file = e.target.files?.[0];
                           if (file) {
-                            const reader = new FileReader();
-                            reader.onload = (event) => {
-                              if (event.target?.result) {
-                                setGeneralForm({ ...generalForm, aboutImageUrl: event.target.result as string });
-                                showStatus('About feature image uploaded successfully from device.');
-                              }
-                            };
-                            reader.readAsDataURL(file);
+                            compressAndReadImage(file, (dataUrl) => {
+                              setGeneralForm({ ...generalForm, aboutImageUrl: dataUrl });
+                              showStatus('About feature image uploaded successfully from device.');
+                            });
                           }
                         }}
                         className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
@@ -1297,7 +1346,7 @@ export const AdminCMSModal: React.FC = () => {
                   </div>
 
                   {editingNotice && (
-                    <div className="p-4 bg-amber-50/70 border border-amber-200 rounded-2xl space-y-3">
+                    <div className="p-4 bg-amber-50.50 border border-amber-200 rounded-2xl space-y-3">
                       <div className="flex items-center justify-between">
                         <span className="font-bold text-amber-950 text-sm">Editing Notice</span>
                         <button
@@ -2116,14 +2165,10 @@ export const AdminCMSModal: React.FC = () => {
                               e.preventDefault();
                               const file = e.dataTransfer.files?.[0];
                               if (file && file.type.startsWith('image/')) {
-                                const reader = new FileReader();
-                                reader.onload = (event) => {
-                                  if (event.target?.result) {
-                                    setEditingGallery({ ...editingGallery, image: event.target.result as string });
-                                    showStatus('Image uploaded successfully from device.');
-                                  }
-                                };
-                                reader.readAsDataURL(file);
+                                compressAndReadImage(file, (dataUrl) => {
+                                  setEditingGallery({ ...editingGallery, image: dataUrl });
+                                  showStatus('Image uploaded successfully from device.');
+                                });
                               }
                             }}
                             className="border-2 border-dashed border-slate-300 hover:border-blue-900 rounded-xl p-4 text-center bg-slate-50 transition-colors cursor-pointer relative group"
@@ -2134,14 +2179,10 @@ export const AdminCMSModal: React.FC = () => {
                               onChange={(e) => {
                                 const file = e.target.files?.[0];
                                 if (file) {
-                                  const reader = new FileReader();
-                                  reader.onload = (event) => {
-                                    if (event.target?.result) {
-                                      setEditingGallery({ ...editingGallery, image: event.target.result as string });
-                                      showStatus('Image uploaded successfully from device.');
-                                    }
-                                  };
-                                  reader.readAsDataURL(file);
+                                  compressAndReadImage(file, (dataUrl) => {
+                                    setEditingGallery({ ...editingGallery, image: dataUrl });
+                                    showStatus('Image uploaded successfully from device.');
+                                  });
                                 }
                               }}
                               className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"

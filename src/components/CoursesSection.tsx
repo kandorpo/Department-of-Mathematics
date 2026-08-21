@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import { useDepartmentData } from '../context/DataContext';
 import { Course, AcademicLevel } from '../types';
+import { downloadCourseSyllabusPDF } from '../utils/downloadHelper';
 
 export const CoursesSection: React.FC = () => {
   const { courses: COURSES_DATA } = useDepartmentData();
@@ -279,17 +280,26 @@ export const CoursesSection: React.FC = () => {
             </div>
 
             {/* Footer Buttons */}
-            <div className="flex items-center justify-between pt-4 border-t border-slate-200">
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-4 border-t border-slate-200">
               <span className="text-[11px] text-slate-500">
-                Available in Departmental Seminar Library
+                Available in Departmental Seminar Library • NEP 2020 Aligned
               </span>
 
-              <button
-                onClick={() => setSelectedCourse(null)}
-                className="px-5 py-2 bg-blue-900 hover:bg-blue-950 text-white text-xs font-bold rounded-lg transition-colors cursor-pointer"
-              >
-                Close Syllabus
-              </button>
+              <div className="flex items-center gap-2 w-full sm:w-auto">
+                <button
+                  onClick={() => downloadCourseSyllabusPDF(selectedCourse)}
+                  className="flex-1 sm:flex-none px-4 py-2 bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold rounded-lg transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-xs active:scale-95"
+                >
+                  <Download className="w-3.5 h-3.5" />
+                  <span>Download Syllabus PDF</span>
+                </button>
+                <button
+                  onClick={() => setSelectedCourse(null)}
+                  className="flex-1 sm:flex-none px-5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-lg transition-colors cursor-pointer"
+                >
+                  Close
+                </button>
+              </div>
             </div>
 
           </div>

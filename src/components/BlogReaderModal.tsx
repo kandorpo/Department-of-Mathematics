@@ -14,9 +14,11 @@ import {
   Bookmark,
   Sparkles,
   ArrowLeft,
-  GraduationCap
+  GraduationCap,
+  Download
 } from 'lucide-react';
 import { BlogPost } from '../types';
+import { downloadBlogPostPDF } from '../utils/downloadHelper';
 
 interface BlogReaderModalProps {
   post: BlogPost | null;
@@ -112,6 +114,15 @@ export const BlogReaderModal: React.FC<BlogReaderModalProps> = ({
 
           <div className="flex items-center gap-2">
             <button
+              onClick={() => downloadBlogPostPDF(post)}
+              className="px-3 py-1.5 bg-blue-900 hover:bg-blue-950 text-white rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer shadow-xs active:scale-95"
+              title="Download Article PDF to device"
+            >
+              <Download className="w-3.5 h-3.5" />
+              <span>Download PDF</span>
+            </button>
+
+            <button
               onClick={() => {
                 onClose();
                 onEdit(post);
@@ -120,7 +131,7 @@ export const BlogReaderModal: React.FC<BlogReaderModalProps> = ({
               title="Edit this post"
             >
               <Edit3 className="w-3.5 h-3.5" />
-              <span>Edit Article</span>
+              <span>Edit</span>
             </button>
 
             <button

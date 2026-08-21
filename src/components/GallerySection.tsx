@@ -6,10 +6,12 @@ import {
   ChevronLeft,
   ChevronRight,
   Calendar,
-  Sparkles
+  Sparkles,
+  Download
 } from 'lucide-react';
 import { useDepartmentData } from '../context/DataContext';
 import { GalleryItem } from '../types';
+import { downloadImageFile } from '../utils/downloadHelper';
 
 export const GallerySection: React.FC = () => {
   const { gallery: GALLERY_DATA } = useDepartmentData();
@@ -117,8 +119,21 @@ export const GallerySection: React.FC = () => {
                 </p>
               </div>
 
-              <div className="absolute top-3 right-3 p-1.5 bg-white/20 backdrop-blur-xs rounded-full opacity-0 group-hover:opacity-100 transition-opacity text-white">
-                <ZoomIn className="w-3.5 h-3.5" />
+              <div className="absolute top-3 right-3 flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    const safeName = item.title.replace(/[^a-zA-Z0-9]/g, '_');
+                    downloadImageFile(item.image, `MathDept_${safeName}.jpg`);
+                  }}
+                  className="p-1.5 bg-slate-900/80 hover:bg-blue-900 backdrop-blur-xs rounded-full text-white cursor-pointer shadow-xs active:scale-90 transition-transform"
+                  title="Download Image to Storage"
+                >
+                  <Download className="w-3.5 h-3.5" />
+                </button>
+                <div className="p-1.5 bg-white/20 backdrop-blur-xs rounded-full text-white">
+                  <ZoomIn className="w-3.5 h-3.5" />
+                </div>
               </div>
             </div>
           ))}
@@ -147,13 +162,26 @@ export const GallerySection: React.FC = () => {
                 </h4>
               </div>
 
-              <button
-                onClick={() => setLightboxIndex(null)}
-                className="p-2 text-slate-400 hover:text-white hover:bg-slate-800 rounded-lg cursor-pointer"
-                aria-label="Close Lightbox"
-              >
-                <X className="w-5 h-5" />
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => {
+                    const item = filteredGallery[lightboxIndex];
+                    const safeName = item.title.replace(/[^a-zA-Z0-9]/g, '_');
+                    downloadImageFile(item.image, `MathDept_${safeName}.jpg`);
+                  }}
+                  className="px-3 py-1.5 bg-blue-700 hover:bg-blue-600 text-white text-xs font-bold rounded-lg flex items-center gap-1.5 transition-colors cursor-pointer shadow-xs active:scale-95"
+                >
+                  <Download className="w-3.5 h-3.5" />
+                  <span>Download Image</span>
+                </button>
+                <button
+                  onClick={() => setLightboxIndex(null)}
+                  className="p-2 text-slate-400 hover:text-white hover:bg-slate-800 rounded-lg cursor-pointer"
+                  aria-label="Close Lightbox"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
             </div>
 
             {/* Image Container */}

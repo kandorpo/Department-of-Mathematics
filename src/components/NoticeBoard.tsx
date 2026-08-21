@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import { useDepartmentData } from '../context/DataContext';
 import { NoticeItem } from '../types';
+import { downloadNoticePDF } from '../utils/downloadHelper';
 
 export const NoticeBoard: React.FC = () => {
   const { notices: NOTICES_DATA, setIsAdminOpen } = useDepartmentData();
@@ -241,12 +242,12 @@ export const NoticeBoard: React.FC = () => {
               <div className="flex items-center gap-2 w-full sm:w-auto">
                 <button
                   onClick={() => {
-                    alert(`Downloading official circular: ${selectedNotice.title}`);
+                    downloadNoticePDF(selectedNotice);
                   }}
-                  className="flex-1 sm:flex-none px-4 py-2 bg-blue-900 hover:bg-blue-950 text-white text-xs font-bold rounded-lg flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+                  className="flex-1 sm:flex-none px-4 py-2 bg-blue-900 hover:bg-blue-950 text-white text-xs font-bold rounded-lg flex items-center justify-center gap-1.5 transition-colors cursor-pointer shadow-xs active:scale-95"
                 >
                   <Download className="w-3.5 h-3.5" />
-                  <span>Download Signed PDF</span>
+                  <span>Download Official PDF</span>
                 </button>
                 <button
                   onClick={() => setSelectedNotice(null)}

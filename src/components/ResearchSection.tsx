@@ -15,10 +15,12 @@ import {
   GitBranch,
   BarChart3,
   CheckCircle2,
-  DollarSign
+  DollarSign,
+  Download
 } from 'lucide-react';
 import { useDepartmentData } from '../context/DataContext';
 import { ResearchArea } from '../types';
+import { downloadResearchPubPDF } from '../utils/downloadHelper';
 
 const areaIconMap: Record<string, React.ReactNode> = {
   Waves: <Waves className="w-5 h-5 text-blue-700" />,
@@ -188,13 +190,23 @@ export const ResearchSection: React.FC = () => {
                     </span>
                   </div>
 
-                  <div className="pt-2 border-t border-slate-200/60 flex items-center justify-between text-xs text-slate-500">
-                    <span className="italic font-serif">{pub.journal}</span>
-                    {pub.doi && (
-                      <span className="text-[11px] font-mono text-blue-800">
-                        DOI: {pub.doi}
-                      </span>
-                    )}
+                  <div className="pt-2 border-t border-slate-200/60 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs text-slate-500">
+                    <div className="flex items-center gap-2">
+                      <span className="italic font-serif">{pub.journal}</span>
+                      {pub.doi && (
+                        <span className="text-[11px] font-mono text-blue-800">
+                          DOI: {pub.doi}
+                        </span>
+                      )}
+                    </div>
+                    <button
+                      onClick={() => downloadResearchPubPDF(pub)}
+                      className="self-start sm:self-auto px-2.5 py-1 bg-blue-50 hover:bg-blue-900 hover:text-white text-blue-900 font-semibold rounded-md text-[11px] flex items-center gap-1 transition-colors border border-blue-200 hover:border-blue-900 cursor-pointer shadow-xs active:scale-95"
+                      title="Download Official Citation & Abstract PDF"
+                    >
+                      <Download className="w-3 h-3" />
+                      <span>Download Citation PDF</span>
+                    </button>
                   </div>
                 </div>
               ))}

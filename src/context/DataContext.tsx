@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { DOC_REF, onSnapshot, setDoc } from '../firebase';
 import {
   FacultyMember,
   Course,
@@ -281,73 +282,38 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     });
   };
 
-  // Load initial from localStorage
+  // Load initial from localStorage & subscribe to Firestore live sync
   useEffect(() => {
+    // 1. Initial quick load from localStorage for immediate render
     try {
       const stored = localStorage.getItem(STORAGE_KEY);
       let currentFaculty = FACULTY_DATA;
       if (stored) {
         const parsed: Partial<DepartmentCMSData> = JSON.parse(stored);
-        if (parsed.departmentInfo) {
-          const merged = { ...DEPARTMENT_INFO, ...parsed.departmentInfo };
-          const validImageUrls = (merged.imageUrls || []).filter(url => typeof url === 'string' && url.trim().length > 5);
-          merged.imageUrls = validImageUrls.length > 0 ? validImageUrls : DEPARTMENT_INFO.imageUrls;
-          if (!merged.logoUrl || typeof merged.logoUrl !== 'string' || merged.logoUrl.trim().length < 5) {
-            merged.logoUrl = DEPARTMENT_INFO.logoUrl;
-          }
-          if (!merged.aboutImageUrl || typeof merged.aboutImageUrl !== 'string' || merged.aboutImageUrl.trim().length < 5) {
-            merged.aboutImageUrl = DEPARTMENT_INFO.aboutImageUrl;
-          }
-          setDepartmentInfo(merged);
-        }
-        if (parsed.faculty) {
+        if (parsed.departmentInfo) setDepartmentInfo((prev) => ({ ...prev, ...parsed.departmentInfo }));
+        if (Array.isArray(parsed.faculty)) {
           currentFaculty = parsed.faculty;
           setFaculty(parsed.faculty);
         }
-        if (parsed.stats) {
+        if (Array.isArray(parsed.stats)) {
           setStats(syncFacultyCount(currentFaculty, parsed.stats));
         } else {
           setStats(syncFacultyCount(currentFaculty, DEPARTMENT_STATS));
         }
-        if (parsed.courses) setCourses(parsed.courses);
-        if (parsed.notices) setNotices(parsed.notices);
-        if (parsed.events) setEvents(parsed.events);
-        if (parsed.researchAreas) setResearchAreas(parsed.researchAreas);
-        if (parsed.researchProjects) setResearchProjects(parsed.researchProjects);
-        if (parsed.publications) setPublications(parsed.publications);
-        if (parsed.achievements) setAchievements(parsed.achievements);
-        if (parsed.gallery) setGallery(parsed.gallery);
-        if (parsed.departmentStudents && Array.isArray(parsed.departmentStudents) && parsed.departmentStudents.length > 0) {
-          setDepartmentStudents(parsed.departmentStudents);
-        }
-        if (parsed.blogs) setBlogs(parsed.blogs);
-        if (parsed.registeredStudentProfiles && Array.isArray(parsed.registeredStudentProfiles) && parsed.registeredStudentProfiles.length > 0) {
-          setRegisteredStudentProfiles(parsed.registeredStudentProfiles);
-        }
-        if (parsed.portalResources && Array.isArray(parsed.portalResources) && parsed.portalResources.length > 0) {
-          setPortalResources(parsed.portalResources);
-        }
-        if (parsed.routineSlots && Array.isArray(parsed.routineSlots) && parsed.routineSlots.length > 0) {
-          setRoutineSlots(parsed.routineSlots.map(normalizeRoutineSlot));
-        }
-        if (parsed.studentGrievances && Array.isArray(parsed.studentGrievances) && parsed.studentGrievances.length > 0) {
-          setStudentGrievances(parsed.studentGrievances);
-        }
-      } else {
-        setStats(syncFacultyCount(FACULTY_DATA, DEPARTMENT_STATS));
-      }
-
-      // Check portal standalone profiles key if available
-      const portalProfilesStored = localStorage.getItem(PORTAL_PROFILES_KEY);
-      if (portalProfilesStored) {
-        try {
-          const parsedProfiles = JSON.parse(portalProfilesStored);
-          if (Array.isArray(parsedProfiles) && parsedProfiles.length > 0) {
-            setRegisteredStudentProfiles(parsedProfiles);
-          }
-        } catch {
-          // ignore
-        }
+        if (Array.isArray(parsed.courses)) setCourses(parsed.courses);
+        if (Array.isArray(parsed.notices)) setNotices(parsed.notices);
+        if (Array.isArray(parsed.events)) setEvents(parsed.events);
+        if (Array.isArray(parsed.researchAreas)) setResearchAreas(parsed.researchAreas);
+        if (Array.isArray(parsed.researchProjects)) setResearchProjects(parsed.researchProjects);
+        if (Array.isArray(parsed.publications)) setPublications(parsed.publications);
+        if (Array.isArray(parsed.achievements)) setAchievements(parsed.achievements);
+        if (Array.isArray(parsed.gallery)) setGallery(parsed.gallery);
+        if (Array.isArray(parsed.departmentStudents)) setDepartmentStudents(parsed.departmentStudents);
+        if (Array.isArray(parsed.blogs)) setBlogs(parsed.blogs);
+        if (Array.isArray(parsed.registeredStudentProfiles)) setRegisteredStudentProfiles(parsed.registeredStudentProfiles);
+        if (Array.isArray(parsed.portalResources)) setPortalResources(parsed.portalResources);
+        if (Array.isArray(parsed.routineSlots)) setRoutineSlots(parsed.routineSlots.map(normalizeRoutineSlot));
+        if (Array.isArray(parsed.studentGrievances)) setStudentGrievances(parsed.studentGrievances);
       }
 
       const auth = localStorage.getItem(AUTH_KEY);
@@ -355,15 +321,88 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         setIsAdminLoggedIn(true);
       }
     } catch (e) {
-      console.warn('Error loading data from localStorage:', e);
-    } finally {
+      console.warn('Error loading cached data from localStorage:', e);
+    }
+
+    // 2. Real-time Live Synchronization with Google Cloud Firestore
+    let unsub: (() => void) | null = null;
+    try {
+      unsub = onSnapshot(
+        DOC_REF,
+        (docSnap) => {
+          if (docSnap.exists()) {
+            const data = docSnap.data() as Partial<DepartmentCMSData>;
+            if (data.departmentInfo) setDepartmentInfo((prev) => ({ ...prev, ...data.departmentInfo }));
+            if (Array.isArray(data.faculty)) {
+              setFaculty(data.faculty);
+              setStats((prevStats) => syncFacultyCount(data.faculty!, prevStats));
+            }
+            if (Array.isArray(data.stats)) setStats(data.stats);
+            if (Array.isArray(data.courses)) setCourses(data.courses);
+            if (Array.isArray(data.notices)) setNotices(data.notices);
+            if (Array.isArray(data.events)) setEvents(data.events);
+            if (Array.isArray(data.researchAreas)) setResearchAreas(data.researchAreas);
+            if (Array.isArray(data.researchProjects)) setResearchProjects(data.researchProjects);
+            if (Array.isArray(data.publications)) setPublications(data.publications);
+            if (Array.isArray(data.achievements)) setAchievements(data.achievements);
+            if (Array.isArray(data.gallery)) setGallery(data.gallery);
+            if (Array.isArray(data.departmentStudents)) setDepartmentStudents(data.departmentStudents);
+            if (Array.isArray(data.blogs)) setBlogs(data.blogs);
+            if (Array.isArray(data.registeredStudentProfiles)) setRegisteredStudentProfiles(data.registeredStudentProfiles);
+            if (Array.isArray(data.portalResources)) setPortalResources(data.portalResources);
+            if (Array.isArray(data.routineSlots)) setRoutineSlots(data.routineSlots.map(normalizeRoutineSlot));
+            if (Array.isArray(data.studentGrievances)) setStudentGrievances(data.studentGrievances);
+
+            // Update localStorage cache
+            try {
+              localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+            } catch (err) {}
+          } else {
+            // Initial seed to Firestore if document does not exist yet
+            const initialSeed: DepartmentCMSData = {
+              departmentInfo: DEPARTMENT_INFO,
+              stats: syncFacultyCount(FACULTY_DATA, DEPARTMENT_STATS),
+              faculty: FACULTY_DATA,
+              courses: COURSES_DATA,
+              notices: NOTICES_DATA,
+              events: EVENTS_DATA,
+              researchAreas: RESEARCH_AREAS,
+              researchProjects: RESEARCH_PROJECTS,
+              publications: RESEARCH_PUBLICATIONS,
+              achievements: ACHIEVEMENTS_DATA,
+              gallery: GALLERY_DATA,
+              departmentStudents: DEFAULT_DEPARTMENT_STUDENTS,
+              blogs: DEFAULT_BLOG_POSTS,
+              registeredStudentProfiles: DEFAULT_STUDENT_PROFILES,
+              portalResources: STUDENT_RESOURCES,
+              routineSlots: DEFAULT_ROUTINE_SLOTS.map(normalizeRoutineSlot),
+              studentGrievances: DEFAULT_GRIEVANCES
+            };
+            setDoc(DOC_REF, initialSeed, { merge: true }).catch((err) =>
+              console.warn('Initial Firestore seed warning:', err)
+            );
+          }
+          setIsLoading(false);
+        },
+        (error) => {
+          console.warn('Firestore real-time sync subscription error:', error);
+          setIsLoading(false);
+        }
+      );
+    } catch (err) {
+      console.warn('Error establishing Firestore subscription:', err);
       setIsLoading(false);
     }
+
+    return () => {
+      if (unsub) unsub();
+    };
   }, []);
 
-  // Save changes to localStorage helper
+  // Save changes to localStorage AND Google Cloud Firestore for real-time multi-device sync
   const persist = (data: Partial<DepartmentCMSData>) => {
     console.log('Persisting data:', data);
+    // 1. Save to localStorage
     try {
       const currentStored = localStorage.getItem(STORAGE_KEY);
       const current: DepartmentCMSData = currentStored
@@ -388,8 +427,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             studentGrievances
           };
       const updated = { ...current, ...data };
-      console.log('Final data to persist:', updated);
-      
+
       try {
         localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
       } catch (e: any) {
@@ -404,8 +442,6 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             }
           };
           localStorage.setItem(STORAGE_KEY, JSON.stringify(reducedData));
-        } else {
-          throw e;
         }
       }
 
@@ -414,6 +450,20 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       }
     } catch (e) {
       console.error('Failed to persist CMS data to localStorage:', e);
+    }
+
+    // 2. Save to Google Cloud Firestore (triggers real-time update on all client screens)
+    try {
+      setDoc(DOC_REF, data, { merge: true }).catch((err) => {
+        console.error('Failed to sync changes to Google Cloud Firestore:', err);
+        if (err?.code === 'resource-exhausted' || err?.message?.includes('payload')) {
+          alert('Error: The total size of images and data exceeds the cloud storage limit (1MB). Please upload smaller images or delete old ones to save changes.');
+        } else {
+          alert('Warning: Cloud sync failed. Changes are saved locally but may not persist across devices.');
+        }
+      });
+    } catch (err) {
+      console.error('Error invoking setDoc on Firestore:', err);
     }
   };
 
@@ -968,6 +1018,27 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     setRoutineSlots(DEFAULT_ROUTINE_SLOTS.map(normalizeRoutineSlot));
     setStudentGrievances(DEFAULT_GRIEVANCES);
 
+    const initialSeed: DepartmentCMSData = {
+      departmentInfo: DEPARTMENT_INFO,
+      stats: syncFacultyCount(FACULTY_DATA, DEPARTMENT_STATS),
+      faculty: FACULTY_DATA,
+      courses: COURSES_DATA,
+      notices: NOTICES_DATA,
+      events: EVENTS_DATA,
+      researchAreas: RESEARCH_AREAS,
+      researchProjects: RESEARCH_PROJECTS,
+      publications: RESEARCH_PUBLICATIONS,
+      achievements: ACHIEVEMENTS_DATA,
+      gallery: GALLERY_DATA,
+      departmentStudents: DEFAULT_DEPARTMENT_STUDENTS,
+      blogs: DEFAULT_BLOG_POSTS,
+      registeredStudentProfiles: DEFAULT_STUDENT_PROFILES,
+      portalResources: STUDENT_RESOURCES,
+      routineSlots: DEFAULT_ROUTINE_SLOTS.map(normalizeRoutineSlot),
+      studentGrievances: DEFAULT_GRIEVANCES
+    };
+    persist(initialSeed);
+
     try {
       localStorage.removeItem(STORAGE_KEY);
       localStorage.removeItem(PORTAL_PROFILES_KEY);
@@ -1025,6 +1096,8 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       if (parsed.portalResources) setPortalResources(parsed.portalResources);
       if (parsed.routineSlots) setRoutineSlots(parsed.routineSlots.map(normalizeRoutineSlot));
       if (parsed.studentGrievances) setStudentGrievances(parsed.studentGrievances);
+
+      persist(parsed);
 
       localStorage.setItem(STORAGE_KEY, JSON.stringify(parsed));
       if (parsed.registeredStudentProfiles) {

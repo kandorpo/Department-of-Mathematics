@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   Users,
   Search,
@@ -63,11 +63,18 @@ export const AdminPortalManager: React.FC = () => {
     isLoading
   } = useDepartmentData();
 
-    // General info form local state
+  // General info form local state
   const [generalForm, setGeneralForm] = useState({
     ...departmentInfo,
-    imageUrls: departmentInfo.imageUrls.join(', ')
+    imageUrls: (departmentInfo.imageUrls || []).join(', ')
   });
+
+  useEffect(() => {
+    setGeneralForm({
+      ...departmentInfo,
+      imageUrls: (departmentInfo.imageUrls || []).join(', ')
+    });
+  }, [departmentInfo]);
 
   const handleSaveGeneralInfo = (e: React.FormEvent) => {
     e.preventDefault();
