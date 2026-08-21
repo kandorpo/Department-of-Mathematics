@@ -201,6 +201,8 @@ export const AdminCMSModal: React.FC = () => {
         canvas.height = height;
         const ctx = canvas.getContext('2d');
         if (ctx) {
+          ctx.fillStyle = '#FFFFFF';
+          ctx.fillRect(0, 0, width, height);
           ctx.drawImage(img, 0, 0, width, height);
           const compressed = canvas.toDataURL('image/jpeg', 0.6);
           callback(compressed);
@@ -777,17 +779,16 @@ export const AdminCMSModal: React.FC = () => {
                           </div>
                         ))}
                       </div>
-                      <input
-                        type="text"
-                        value={(generalForm.imageUrls || []).join(', ')}
+                      <textarea
+                        value={(generalForm.imageUrls || []).join('\n')}
                         onChange={(e) => {
-                          const updatedImages = e.target.value.split(',').map(s => s.trim()).filter(Boolean);
+                          const updatedImages = e.target.value.split('\n').map(s => s.trim()).filter(Boolean);
                           const updatedForm = { ...generalForm, imageUrls: updatedImages };
                           setGeneralForm(updatedForm);
                           updateDepartmentInfo(updatedForm);
                         }}
-                        className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl outline-none focus:bg-white focus:ring-2 focus:ring-blue-900 mb-2 text-xs font-mono"
-                        placeholder="Comma separated URLs..."
+                        className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl outline-none focus:bg-white focus:ring-2 focus:ring-blue-900 mb-2 text-xs font-mono min-h-[80px]"
+                        placeholder="One image URL per line..."
                       />
                       <div 
                         onDragOver={(e) => e.preventDefault()}
