@@ -1,0 +1,6 @@
+{
+  "name": "Department of Mathematics - Dudhnoi College",
+  "description": "Official website for the Department of Mathematics featuring academic programs, faculty directory, research highlights, notice board, events, and student resources.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
