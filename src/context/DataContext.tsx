@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { DOC_REF, onSnapshot, setDoc } from '../firebase';
+import { DOC_REF, onSnapshot, setDoc, OperationType, handleFirestoreError } from '../firebase';
 import {
   FacultyMember,
   Course,
@@ -19,7 +19,9 @@ import {
   StudentGrievance,
   HeroFoundations,
   CourseType,
-  RoutineCourseEntry
+  RoutineCourseEntry,
+  AdminAccount,
+  AdminRegistrationRequest
 } from '../types';
 import {
   DEPARTMENT_INFO,
@@ -93,10 +95,13 @@ export interface DepartmentCMSData {
   portalResources?: StudentResource[];
   routineSlots?: RoutineSlot[];
   studentGrievances?: StudentGrievance[];
+  admins?: AdminAccount[];
+  adminRegistrationRequests?: AdminRegistrationRequest[];
 }
 
 const STORAGE_KEY = 'dudhnoi_math_cms_master_data_v2';
 const AUTH_KEY = 'dudhnoi_math_admin_auth_status';
+const AUTH_USER_KEY = 'dudhnoi_math_admin_auth_user_id';
 const PORTAL_PROFILES_KEY = 'dudhnoi_math_registered_students_list';
 
 export interface VerificationResult {
@@ -124,13 +129,22 @@ interface DataContextType {
   portalResources: StudentResource[];
   routineSlots: RoutineSlot[];
   studentGrievances: StudentGrievance[];
+  admins: AdminAccount[];
+  currentAdmin: AdminAccount | null;
+  adminRegistrationRequests: AdminRegistrationRequest[];
 
   // Admin Modal & Auth
   isAdminOpen: boolean;
   setIsAdminOpen: (open: boolean) => void;
   isAdminLoggedIn: boolean;
-  loginAdmin: (passcode: string) => boolean;
+  loginAdmin: (usernameOrEmail: string, password: string) => boolean;
   logoutAdmin: () => void;
+  addAdminAccount: (account: AdminAccount) => void;
+  updateAdminAccount: (account: AdminAccount) => void;
+  deleteAdminAccount: (id: string) => void;
+  submitAdminRegistrationRequest: (req: Omit<AdminRegistrationRequest, 'id' | 'status' | 'requestDate'>) => void;
+  approveAdminRegistrationRequest: (id: string) => void;
+  rejectAdminRegistrationRequest: (id: string) => void;
 
   // Mutators
   updateDepartmentInfo: (info: Partial<DepartmentInfoType>) => void;
@@ -224,6 +238,36 @@ interface DataContextType {
 
 const DataContext = createContext<DataContextType | undefined>(undefined);
 
+const DEFAULT_ADMIN_ACCOUNTS: AdminAccount[] = [
+  {
+    id: 'admin-kandorpo',
+    username: 'kandorpo',
+    email: 'kandorpobarman@gmail.com',
+    fullName: 'Kandorpo Barman',
+    role: 'Super Admin',
+    passwordHash: 'Daisuke34',
+    status: 'Active'
+  },
+  {
+    id: 'admin-hod',
+    username: 'hod_math',
+    email: 'hod@dudhnoicollege.ac.in',
+    fullName: 'HOD Mathematics',
+    role: 'HOD',
+    passwordHash: 'math1972',
+    status: 'Active'
+  },
+  {
+    id: 'admin-dept',
+    username: 'department_admin',
+    email: 'math_dept@dudhnoicollege.ac.in',
+    fullName: 'Department Coordinator',
+    role: 'Department Admin',
+    passwordHash: 'dudhnoi1972',
+    status: 'Active'
+  }
+];
+
 // Helper to normalize routine slot structure
 const normalizeRoutineSlot = (slot: any): RoutineSlot => {
   const parseEntry = (val: any, defaultType: CourseType = 'Major'): RoutineCourseEntry => {
@@ -271,6 +315,9 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const [isAdminOpen, setIsAdminOpen] = useState(false);
   const [isAdminLoggedIn, setIsAdminLoggedIn] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [admins, setAdmins] = useState<AdminAccount[]>(DEFAULT_ADMIN_ACCOUNTS);
+  const [currentAdmin, setCurrentAdmin] = useState<AdminAccount | null>(null);
+  const [adminRegistrationRequests, setAdminRegistrationRequests] = useState<AdminRegistrationRequest[]>([]);
 
   // Helper to sync faculty count in stats
   const syncFacultyCount = (facList: FacultyMember[], statsList: DepartmentStat[]): DepartmentStat[] => {
@@ -288,9 +335,10 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     try {
       const stored = localStorage.getItem(STORAGE_KEY);
       let currentFaculty = FACULTY_DATA;
+      let parsed: Partial<DepartmentCMSData> | null = null;
       if (stored) {
-        const parsed: Partial<DepartmentCMSData> = JSON.parse(stored);
-        if (parsed.departmentInfo) setDepartmentInfo((prev) => ({ ...prev, ...parsed.departmentInfo }));
+        parsed = JSON.parse(stored);
+        if (parsed && parsed.departmentInfo) setDepartmentInfo((prev) => ({ ...prev, ...parsed!.departmentInfo }));
         if (Array.isArray(parsed.faculty)) {
           currentFaculty = parsed.faculty;
           setFaculty(parsed.faculty);
@@ -312,6 +360,8 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         if (Array.isArray(parsed.blogs)) setBlogs(parsed.blogs);
         if (Array.isArray(parsed.registeredStudentProfiles)) setRegisteredStudentProfiles(parsed.registeredStudentProfiles);
         if (Array.isArray(parsed.portalResources)) setPortalResources(parsed.portalResources);
+        if (Array.isArray(parsed.admins)) setAdmins(parsed.admins);
+        if (Array.isArray(parsed.adminRegistrationRequests)) setAdminRegistrationRequests(parsed.adminRegistrationRequests);
         if (Array.isArray(parsed.routineSlots)) setRoutineSlots(parsed.routineSlots.map(normalizeRoutineSlot));
         if (Array.isArray(parsed.studentGrievances)) setStudentGrievances(parsed.studentGrievances);
       }
@@ -319,17 +369,34 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       const auth = localStorage.getItem(AUTH_KEY);
       if (auth === 'true') {
         setIsAdminLoggedIn(true);
+        const savedUid = localStorage.getItem(AUTH_USER_KEY);
+        if (savedUid) {
+          const matched = (parsed?.admins || DEFAULT_ADMIN_ACCOUNTS).find(a => a.id === savedUid);
+          if (matched) {
+            setCurrentAdmin(matched);
+          } else {
+            setCurrentAdmin(DEFAULT_ADMIN_ACCOUNTS[0]);
+          }
+        } else {
+          setCurrentAdmin(DEFAULT_ADMIN_ACCOUNTS[0]);
+        }
       }
     } catch (e) {
       console.warn('Error loading cached data from localStorage:', e);
     }
 
-    // 2. Real-time Live Synchronization with Google Cloud Firestore
+    // 2. Real-time Live Synchronization with Google Cloud Firestore with a 2-second timeout fallback
+    const connectionTimeout = setTimeout(() => {
+      console.warn('Firestore connection timeout: falling back to localStorage cache for initial render');
+      setIsLoading(false);
+    }, 2000);
+
     let unsub: (() => void) | null = null;
     try {
       unsub = onSnapshot(
         DOC_REF,
         (docSnap) => {
+          clearTimeout(connectionTimeout);
           if (docSnap.exists()) {
             const data = docSnap.data() as Partial<DepartmentCMSData>;
             if (data.departmentInfo) setDepartmentInfo((prev) => ({ ...prev, ...data.departmentInfo }));
@@ -352,6 +419,21 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             if (Array.isArray(data.portalResources)) setPortalResources(data.portalResources);
             if (Array.isArray(data.routineSlots)) setRoutineSlots(data.routineSlots.map(normalizeRoutineSlot));
             if (Array.isArray(data.studentGrievances)) setStudentGrievances(data.studentGrievances);
+            if (Array.isArray(data.adminRegistrationRequests)) setAdminRegistrationRequests(data.adminRegistrationRequests);
+            if (Array.isArray(data.admins)) {
+              setAdmins(data.admins);
+              const savedUid = localStorage.getItem(AUTH_USER_KEY);
+              if (savedUid) {
+                const matched = data.admins.find(a => a.id === savedUid);
+                if (matched) {
+                  setCurrentAdmin(matched);
+                } else {
+                  setCurrentAdmin(data.admins.find(a => a.role === 'Super Admin') || data.admins[0] || DEFAULT_ADMIN_ACCOUNTS[0]);
+                }
+              } else {
+                setCurrentAdmin(data.admins.find(a => a.role === 'Super Admin') || data.admins[0] || DEFAULT_ADMIN_ACCOUNTS[0]);
+              }
+            }
 
             // Update localStorage cache
             try {
@@ -376,25 +458,32 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
               registeredStudentProfiles: DEFAULT_STUDENT_PROFILES,
               portalResources: STUDENT_RESOURCES,
               routineSlots: DEFAULT_ROUTINE_SLOTS.map(normalizeRoutineSlot),
-              studentGrievances: DEFAULT_GRIEVANCES
+              studentGrievances: DEFAULT_GRIEVANCES,
+              admins: DEFAULT_ADMIN_ACCOUNTS,
+              adminRegistrationRequests: []
             };
-            setDoc(DOC_REF, initialSeed, { merge: true }).catch((err) =>
-              console.warn('Initial Firestore seed warning:', err)
-            );
+            setDoc(DOC_REF, initialSeed, { merge: true }).catch((err) => {
+              console.warn('Initial Firestore seed warning:', err);
+              handleFirestoreError(err, OperationType.WRITE, 'department_cms/master');
+            });
           }
           setIsLoading(false);
         },
         (error) => {
+          clearTimeout(connectionTimeout);
           console.warn('Firestore real-time sync subscription error:', error);
           setIsLoading(false);
+          handleFirestoreError(error, OperationType.GET, 'department_cms/master');
         }
       );
     } catch (err) {
+      clearTimeout(connectionTimeout);
       console.warn('Error establishing Firestore subscription:', err);
       setIsLoading(false);
     }
 
     return () => {
+      clearTimeout(connectionTimeout);
       if (unsub) unsub();
     };
   }, []);
@@ -457,10 +546,11 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       setDoc(DOC_REF, data, { merge: true }).catch((err) => {
         console.error('Failed to sync changes to Google Cloud Firestore:', err);
         if (err?.code === 'resource-exhausted' || err?.message?.includes('payload')) {
-          alert('Error: The total size of images and data exceeds the cloud storage limit (1MB). Please upload smaller images or delete old ones to save changes.');
+          console.warn('Error: The total size of images and data exceeds the cloud storage limit (1MB). Please upload smaller images.');
         } else {
-          alert('Warning: Cloud sync failed. Changes are saved locally but may not persist across devices.');
+          console.warn('Warning: Cloud sync failed. Changes are saved locally.');
         }
+        handleFirestoreError(err, OperationType.WRITE, 'department_cms/master');
       });
     } catch (err) {
       console.error('Error invoking setDoc on Firestore:', err);
@@ -468,12 +558,30 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   };
 
   // Auth handler
-  const loginAdmin = (passcode: string): boolean => {
-    // Default passcodes: "admin", "dudhnoi1972", "math1972", "admin123"
-    const validPasscodes = ['dudhnoi1972', 'admin', 'math1972', 'admin123', 'dudhnoi'];
-    if (validPasscodes.includes(passcode.trim().toLowerCase())) {
+  const loginAdmin = (usernameOrEmail: string, password: string): boolean => {
+    const cleanUser = usernameOrEmail.trim().toLowerCase();
+    const cleanPass = password.trim();
+
+    const matched = admins.find(a => 
+      (a.username.toLowerCase() === cleanUser || a.email.toLowerCase() === cleanUser) &&
+      a.passwordHash === cleanPass &&
+      a.status === 'Active'
+    );
+
+    if (matched) {
       setIsAdminLoggedIn(true);
+      setCurrentAdmin(matched);
       localStorage.setItem(AUTH_KEY, 'true');
+      localStorage.setItem(AUTH_USER_KEY, matched.id);
+
+      // Update last login
+      const updatedAdmins = admins.map(a => 
+        a.id === matched.id 
+          ? { ...a, lastLogin: new Date().toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' }) + ' ' + new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) } 
+          : a
+      );
+      setAdmins(updatedAdmins);
+      persist({ admins: updatedAdmins });
       return true;
     }
     return false;
@@ -481,7 +589,76 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   const logoutAdmin = () => {
     setIsAdminLoggedIn(false);
+    setCurrentAdmin(null);
     localStorage.removeItem(AUTH_KEY);
+    localStorage.removeItem(AUTH_USER_KEY);
+  };
+
+  const addAdminAccount = (account: AdminAccount) => {
+    const updated = [...admins, account];
+    setAdmins(updated);
+    persist({ admins: updated });
+  };
+
+  const updateAdminAccount = (account: AdminAccount) => {
+    const updated = admins.map(a => a.id === account.id ? account : a);
+    setAdmins(updated);
+    persist({ admins: updated });
+    if (currentAdmin && currentAdmin.id === account.id) {
+      setCurrentAdmin(account);
+    }
+  };
+
+  const deleteAdminAccount = (id: string) => {
+    const updated = admins.filter(a => a.id !== id);
+    setAdmins(updated);
+    persist({ admins: updated });
+  };
+
+  const submitAdminRegistrationRequest = (req: Omit<AdminRegistrationRequest, "id" | "status" | "requestDate">) => {
+    const newRequest: AdminRegistrationRequest = {
+      ...req,
+      id: "req-" + Date.now(),
+      status: "Pending",
+      requestDate: new Date().toLocaleDateString("en-US", { day: "numeric", month: "short", year: "numeric" })
+    };
+    const updated = [...adminRegistrationRequests, newRequest];
+    setAdminRegistrationRequests(updated);
+    persist({ adminRegistrationRequests: updated });
+  };
+
+  const approveAdminRegistrationRequest = (id: string) => {
+    const request = adminRegistrationRequests.find(r => r.id === id);
+    if (!request) return;
+
+    const duplicate = admins.some(a => a.username.toLowerCase() === request.username.toLowerCase() || a.email.toLowerCase() === request.email.toLowerCase());
+    if (duplicate) {
+      alert("Cannot approve: An administrator with this Username or Email already exists.");
+      return;
+    }
+
+    const newAdmin: AdminAccount = {
+      id: "admin-" + Date.now(),
+      username: request.username,
+      email: request.email,
+      fullName: request.fullName,
+      role: request.role as any,
+      passwordHash: request.passwordHash,
+      status: "Active"
+    };
+
+    const updatedAdmins = [...admins, newAdmin];
+    const updatedRequests = adminRegistrationRequests.map(r => r.id === id ? { ...r, status: "Approved" as const } : r);
+
+    setAdmins(updatedAdmins);
+    setAdminRegistrationRequests(updatedRequests);
+    persist({ admins: updatedAdmins, adminRegistrationRequests: updatedRequests });
+  };
+
+  const rejectAdminRegistrationRequest = (id: string) => {
+    const updatedRequests = adminRegistrationRequests.map(r => r.id === id ? { ...r, status: "Rejected" as const } : r);
+    setAdminRegistrationRequests(updatedRequests);
+    persist({ adminRegistrationRequests: updatedRequests });
   };
 
   // Mutators
@@ -1136,6 +1313,15 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         isAdminLoggedIn,
         loginAdmin,
         logoutAdmin,
+        admins,
+        currentAdmin,
+        adminRegistrationRequests,
+        addAdminAccount,
+        updateAdminAccount,
+        deleteAdminAccount,
+        submitAdminRegistrationRequest,
+        approveAdminRegistrationRequest,
+        rejectAdminRegistrationRequest,
 
         updateDepartmentInfo,
         updateStats,

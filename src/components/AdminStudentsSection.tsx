@@ -252,8 +252,8 @@ export const AdminStudentsSection: React.FC<AdminStudentsSectionProps> = ({
     e.preventDefault();
     setFormError('');
 
-    if (!formFullName.trim() || !formRollNo.trim() || !formEmail.trim()) {
-      setFormError('Please fill in student name, roll number, and official email.');
+    if (!formFullName.trim() || !formRollNo.trim()) {
+      setFormError('Please fill in student name and roll number.');
       return;
     }
 
@@ -278,23 +278,23 @@ export const AdminStudentsSection: React.FC<AdminStudentsSectionProps> = ({
       id: editingStudent ? editingStudent.id : `dept-stu-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
       fullName: formFullName.trim(),
       rollNo: formRollNo.trim(),
-      classSection: formClassSection.trim() || undefined,
+      classSection: undefined,
       guRegNo: formGuRegNo.trim() || undefined,
       courseProgram: formCourseProgram,
       selectiveCourse: 'Not Applicable',
       semester: finalSemester,
-      batch: formBatch.trim() || '2024 - 2028',
-      email: formEmail.trim(),
+      batch: undefined,
+      email: undefined,
       phone: formPhone.trim() || undefined,
-      mentorName: formMentorName,
+      mentorName: undefined,
       cgpa: formCgpa ? parseFloat(formCgpa) : undefined,
       status: formStatus,
       admissionYear: formAdmissionYear.trim() || undefined,
-      dob: formDob || undefined,
-      fatherName: formFatherName.trim() || undefined,
-      bloodGroup: formBloodGroup || undefined,
-      address: formAddress.trim() || undefined,
-      notes: formNotes.trim() || undefined
+      dob: undefined,
+      fatherName: undefined,
+      bloodGroup: undefined,
+      address: undefined,
+      notes: undefined
     };
 
     if (editingStudent) {
@@ -1560,7 +1560,6 @@ export const AdminStudentsSection: React.FC<AdminStudentsSectionProps> = ({
                   <User className="w-3.5 h-3.5 text-blue-900" />
                   <span>Student Identity & Identification</span>
                 </span>
-
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
                     <label className="block font-semibold text-slate-700 mb-1">Full Name *</label>
@@ -1573,7 +1572,6 @@ export const AdminStudentsSection: React.FC<AdminStudentsSectionProps> = ({
                       className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-900 text-xs font-medium"
                     />
                   </div>
-
                   <div>
                     <label className="block font-semibold text-slate-700 mb-1">Class Roll Number *</label>
                     <input
@@ -1588,18 +1586,7 @@ export const AdminStudentsSection: React.FC<AdminStudentsSectionProps> = ({
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div>
-                    <label className="block font-semibold text-slate-700 mb-1">Class / Section / Batch Group</label>
-                    <input
-                      type="text"
-                      placeholder="e.g. B.Sc. 1st Year (Section A) or Room 101"
-                      value={formClassSection}
-                      onChange={(e) => setFormClassSection(e.target.value)}
-                      className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-900 text-xs"
-                    />
-                  </div>
-
-                  <div>
+                  <div className="sm:col-span-2">
                     <label className="block font-semibold text-slate-700 mb-1">Gauhati University Reg. No</label>
                     <input
                       type="text"
@@ -1618,7 +1605,6 @@ export const AdminStudentsSection: React.FC<AdminStudentsSectionProps> = ({
                   <BookOpen className="w-3.5 h-3.5 text-blue-900" />
                   <span>Academic Course, Selective Track & Semester</span>
                 </span>
-
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
                     <label className="block font-semibold text-slate-700 mb-1">Degree Program *</label>
@@ -1634,10 +1620,9 @@ export const AdminStudentsSection: React.FC<AdminStudentsSectionProps> = ({
                       ))}
                     </select>
                   </div>
-
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
                     <label className="block font-semibold text-slate-700 mb-1">Semester</label>
                     <select
@@ -1653,18 +1638,6 @@ export const AdminStudentsSection: React.FC<AdminStudentsSectionProps> = ({
                       <option value="Other">Custom Semester...</option>
                     </select>
                   </div>
-
-                  <div>
-                    <label className="block font-semibold text-slate-700 mb-1">Academic Batch</label>
-                    <input
-                      type="text"
-                      placeholder="e.g. 2024 - 2028"
-                      value={formBatch}
-                      onChange={(e) => setFormBatch(e.target.value)}
-                      className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-900 text-xs"
-                    />
-                  </div>
-
                   <div>
                     <label className="block font-semibold text-slate-700 mb-1">Admission Year</label>
                     <input
@@ -1696,25 +1669,9 @@ export const AdminStudentsSection: React.FC<AdminStudentsSectionProps> = ({
               <div className="space-y-3 p-3.5 bg-slate-50 rounded-xl border border-slate-200">
                 <span className="text-[10px] uppercase font-bold text-slate-500 tracking-wider flex items-center gap-1">
                   <UserCheck className="w-3.5 h-3.5 text-emerald-600" />
-                  <span>Mentorship, Performance & Department Status</span>
+                  <span>Performance & Department Status</span>
                 </span>
-
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                  <div>
-                    <label className="block font-semibold text-slate-700 mb-1">Assigned Faculty Mentor</label>
-                    <select
-                      value={formMentorName}
-                      onChange={(e) => setFormMentorName(e.target.value)}
-                      className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-900 text-xs"
-                    >
-                      {faculty.map((f) => (
-                        <option key={f.id} value={f.name}>
-                          {f.name} ({f.designation})
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
                     <label className="block font-semibold text-slate-700 mb-1">CGPA / Performance</label>
                     <input
@@ -1728,7 +1685,6 @@ export const AdminStudentsSection: React.FC<AdminStudentsSectionProps> = ({
                       className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-900 text-xs font-semibold"
                     />
                   </div>
-
                   <div>
                     <label className="block font-semibold text-slate-700 mb-1">Department Status</label>
                     <select
@@ -1750,90 +1706,15 @@ export const AdminStudentsSection: React.FC<AdminStudentsSectionProps> = ({
               <div className="space-y-3 p-3.5 bg-slate-50 rounded-xl border border-slate-200">
                 <span className="text-[10px] uppercase font-bold text-slate-500 tracking-wider flex items-center gap-1">
                   <Mail className="w-3.5 h-3.5 text-blue-900" />
-                  <span>Contact, Parentage & Personal Details</span>
+                  <span>Contact Details</span>
                 </span>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div>
-                    <label className="block font-semibold text-slate-700 mb-1">Official Student Email *</label>
-                    <input
-                      type="email"
-                      required
-                      placeholder="student@student.dudhnoicollege.ac.in"
-                      value={formEmail}
-                      onChange={(e) => setFormEmail(e.target.value)}
-                      className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-900 text-xs"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block font-semibold text-slate-700 mb-1">Phone / Mobile No.</label>
-                    <input
-                      type="text"
-                      placeholder="+91 94350 12345"
-                      value={formPhone}
-                      onChange={(e) => setFormPhone(e.target.value)}
-                      className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-900 text-xs"
-                    />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                  <div>
-                    <label className="block font-semibold text-slate-700 mb-1">Parent / Guardian Name</label>
-                    <input
-                      type="text"
-                      placeholder="e.g. Ramesh Chandra Ray"
-                      value={formFatherName}
-                      onChange={(e) => setFormFatherName(e.target.value)}
-                      className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-900 text-xs"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block font-semibold text-slate-700 mb-1">Blood Group</label>
-                    <select
-                      value={formBloodGroup}
-                      onChange={(e) => setFormBloodGroup(e.target.value)}
-                      className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-900 text-xs"
-                    >
-                      {['A+', 'A-', 'B+', 'B-', 'O+', 'O-', 'AB+', 'AB-'].map((bg) => (
-                        <option key={bg} value={bg}>
-                          {bg}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="block font-semibold text-slate-700 mb-1">Date of Birth</label>
-                    <input
-                      type="date"
-                      value={formDob}
-                      onChange={(e) => setFormDob(e.target.value)}
-                      className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-900 text-xs"
-                    />
-                  </div>
-                </div>
-
                 <div>
-                  <label className="block font-semibold text-slate-700 mb-1">Permanent / Residential Address</label>
+                  <label className="block font-semibold text-slate-700 mb-1">Phone / Mobile No.</label>
                   <input
                     type="text"
-                    placeholder="Village / Ward, PO, District, State - PIN"
-                    value={formAddress}
-                    onChange={(e) => setFormAddress(e.target.value)}
-                    className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-900 text-xs"
-                  />
-                </div>
-
-                <div>
-                  <label className="block font-semibold text-slate-700 mb-1">Administrative Notes / Remarks</label>
-                  <input
-                    type="text"
-                    placeholder="e.g. Regular student, Ramanujan Club volunteer, Sports quota"
-                    value={formNotes}
-                    onChange={(e) => setFormNotes(e.target.value)}
+                    placeholder="+91 94350 12345"
+                    value={formPhone}
+                    onChange={(e) => setFormPhone(e.target.value)}
                     className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-900 text-xs"
                   />
                 </div>

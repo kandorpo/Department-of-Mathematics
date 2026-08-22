@@ -56,10 +56,67 @@ const PRESET_AVATARS = [
 ];
 
 export const StudentPortalModal: React.FC<StudentPortalModalProps> = ({ isOpen, onClose }) => {
+  const getSmsUrl = (phone: string, text: string) => {
+    const cleanPhone = phone.replace(/[^0-9]/g, '');
+    const isIos = /iPad|iPhone|iPod/.test(navigator.userAgent || '');
+    return `sms:${cleanPhone}${isIos ? '&' : '?'}body=${encodeURIComponent(text)}`;
+  };
+
+  const getWaUrl = (phone: string, text: string) => {
+    let cleanPhone = phone.replace(/[^0-9]/g, '');
+    if (cleanPhone.length === 10) {
+      cleanPhone = '91' + cleanPhone;
+    }
+    return `https://wa.me/${cleanPhone}?text=${encodeURIComponent(text)}`;
+  };
+
+  // OTP Countdown and background delivery states
+  const [forgotCountdown, setForgotCountdown] = useState(0);
+  const [registerCountdown, setRegisterCountdown] = useState(0);
+  const [activeNotifications, setActiveNotifications] = useState<{ id: string; sender: string; text: string }[]>([]);
+
+  const triggerNotification = (sender: string, text: string) => {
+    const id = Math.random().toString();
+    setActiveNotifications(prev => [...prev, { id, sender, text }]);
+    // Audio feedback for receiving a real-time OTP message
+    try {
+      const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.connect(gain);
+      gain.connect(audioCtx.destination);
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(880, audioCtx.currentTime); // chime frequency
+      gain.gain.setValueAtTime(0.08, audioCtx.currentTime);
+      osc.start();
+      osc.stop(audioCtx.currentTime + 0.15);
+    } catch (e) {
+      // Audio context might be restricted before interaction
+    }
+    setTimeout(() => {
+      setActiveNotifications(prev => prev.filter(n => n.id !== id));
+    }, 8000);
+  };
+
+  // Visual countdown timer effects
+  useEffect(() => {
+    if (forgotCountdown > 0) {
+      const timer = setTimeout(() => setForgotCountdown(forgotCountdown - 1), 1000);
+      return () => clearTimeout(timer);
+    }
+  }, [forgotCountdown]);
+
+  useEffect(() => {
+    if (registerCountdown > 0) {
+      const timer = setTimeout(() => setRegisterCountdown(registerCountdown - 1), 1000);
+      return () => clearTimeout(timer);
+    }
+  }, [registerCountdown]);
+
   const { faculty, departmentStudents, verifyStudentEligibility, routineSlots } = useDepartmentData();
 
   const [activeTab, setActiveTab] = useState<'profile' | 'downloads' | 'routine'>('profile');
-  const [authMode, setAuthMode] = useState<'login' | 'register'>('login');
+  const [authMode, setAuthMode] = useState<'login' | 'register' | 'forgot'>('login');
 
   // Stored / Logged-in Student state
   const [currentStudent, setCurrentStudent] = useState<StudentProfile | null>(null);
@@ -69,6 +126,18 @@ export const StudentPortalModal: React.FC<StudentPortalModalProps> = ({ isOpen, 
   const [loginIdentifier, setLoginIdentifier] = useState('');
   const [loginPassword, setLoginPassword] = useState('');
   const [loginError, setLoginError] = useState('');
+
+  // Forgot password flow states
+  const [forgotIdentifier, setForgotIdentifier] = useState('');
+  const [forgotOtpSent, setForgotOtpSent] = useState(false);
+  const [forgotOtpVerified, setForgotOtpVerified] = useState(false);
+  const [forgotOtpInput, setForgotOtpInput] = useState('');
+  const [forgotGeneratedOtp, setForgotGeneratedOtp] = useState('');
+  const [forgotOtpMessage, setForgotOtpMessage] = useState('');
+  const [forgotNewPassword, setForgotNewPassword] = useState('');
+  const [forgotConfirmPassword, setForgotConfirmPassword] = useState('');
+  const [forgotError, setForgotError] = useState('');
+  const [forgotSuccess, setForgotSuccess] = useState('');
 
   // Register form state
   const [regFullName, setRegFullName] = useState('');
@@ -86,6 +155,13 @@ export const StudentPortalModal: React.FC<StudentPortalModalProps> = ({ isOpen, 
   const [regConfirmPassword, setRegConfirmPassword] = useState('');
   const [regSuccess, setRegSuccess] = useState(false);
   const [regError, setRegError] = useState('');
+  const [avatarError, setAvatarError] = useState('');
+  const [otpSent, setOtpSent] = useState(false);
+  const [otpVerified, setOtpVerified] = useState(false);
+  const [otpInput, setOtpInput] = useState('');
+  const [generatedOtp, setGeneratedOtp] = useState('');
+  const [otpMessage, setOtpMessage] = useState('');
+
 
   // Rejection Alert Modal state for non-department students
   const [rejectionModalOpen, setRejectionModalOpen] = useState(false);
@@ -155,6 +231,16 @@ export const StudentPortalModal: React.FC<StudentPortalModalProps> = ({ isOpen, 
     );
 
     if (found) {
+      if (found.password) {
+        if (!loginPassword) {
+          setLoginError('Password is required to login.');
+          return;
+        }
+        if (found.password !== loginPassword) {
+          setLoginError('Incorrect password. Please try again.');
+          return;
+        }
+      }
       setCurrentStudent(found);
       localStorage.setItem(STORAGE_KEY_STUDENT, JSON.stringify(found));
       setLoginIdentifier('');
@@ -171,13 +257,156 @@ export const StudentPortalModal: React.FC<StudentPortalModalProps> = ({ isOpen, 
     setLoginError('');
   };
 
+  // Forgot Password Flow Handlers
+  const handleForgotSendOtp = () => {
+    setForgotError('');
+    setForgotOtpMessage('');
+    const query = forgotIdentifier.trim().toLowerCase();
+    if (!query) {
+      setForgotError('Please enter your registered mobile/WhatsApp number.');
+      return;
+    }
+
+    const cleanQuery = query.replace(/[^0-9]/g, '');
+    const found = registeredStudents.find((s) => {
+      if (!s.phone) return false;
+      const cleanPhone = s.phone.replace(/[^0-9]/g, '');
+      if (cleanQuery.length >= 10 && cleanPhone.endsWith(cleanQuery)) return true;
+      return s.phone.toLowerCase().includes(query);
+    });
+
+    if (!found) {
+      setForgotError('No registered student account was found with this mobile/WhatsApp number.');
+      return;
+    }
+
+    const phoneNum = found.phone || '';
+    if (!phoneNum) {
+      setForgotError('No mobile number is registered for this student. Please contact the department.');
+      return;
+    }
+
+    // Mask phone number for security, e.g. +91 ******1234
+    const maskedPhone = phoneNum.length > 4 
+      ? `${phoneNum.substring(0, phoneNum.length - 4).replace(/\d/g, '*')}${phoneNum.substring(phoneNum.length - 4)}`
+      : phoneNum;
+
+    const dummyOtp = Math.floor(100000 + Math.random() * 900000).toString();
+    setForgotGeneratedOtp(dummyOtp);
+    setForgotOtpSent(true);
+    setForgotCountdown(60);
+    setForgotOtpMessage(`Secure OTP sent to your WhatsApp number ${maskedPhone}. Please enter it below to verify.`);
+
+    // Simulate receiving a background WhatsApp notification automatically on the current screen
+    setTimeout(() => {
+      triggerNotification(
+        "WhatsApp (Dudhnoi Math Portal)",
+        `Verification Code: ${dummyOtp}. Use this OTP to reset your student portal password.`
+      );
+    }, 1500);
+  };
+
+  const handleForgotVerifyOtp = () => {
+    setForgotError('');
+    if (forgotOtpInput === forgotGeneratedOtp) {
+      setForgotOtpVerified(true);
+      setForgotOtpMessage('Mobile number verified successfully! You can now create a new password.');
+    } else {
+      setForgotError('Invalid OTP. Please try again.');
+    }
+  };
+
+  const handleForgotResetPassword = (e: React.FormEvent) => {
+    e.preventDefault();
+    setForgotError('');
+
+    if (!forgotNewPassword) {
+      setForgotError('Please enter a new password.');
+      return;
+    }
+
+    if (forgotNewPassword !== forgotConfirmPassword) {
+      setForgotError('Passwords do not match.');
+      return;
+    }
+
+    const query = forgotIdentifier.trim().toLowerCase();
+    const cleanQuery = query.replace(/[^0-9]/g, '');
+    const updatedList = registeredStudents.map((s) => {
+      if (!s.phone) return s;
+      const cleanPhone = s.phone.replace(/[^0-9]/g, '');
+      const match = (cleanQuery.length >= 10 && cleanPhone.endsWith(cleanQuery)) ||
+                    s.phone.toLowerCase().includes(query);
+      if (match) {
+        return { ...s, password: forgotNewPassword };
+      }
+      return s;
+    });
+
+    setRegisteredStudents(updatedList);
+    localStorage.setItem(STORAGE_KEY_REGISTERED_LIST, JSON.stringify(updatedList));
+
+    // Clear forgot states
+    setForgotIdentifier('');
+    setForgotOtpSent(false);
+    setForgotOtpVerified(false);
+    setForgotOtpInput('');
+    setForgotGeneratedOtp('');
+    setForgotOtpMessage('');
+    setForgotNewPassword('');
+    setForgotConfirmPassword('');
+    setForgotError('');
+
+    // Go back to login with success message
+    setAuthMode('login');
+    setLoginError('');
+    // Use an alert or general trigger for success
+    alert('Password updated successfully! You can now log in with your new password.');
+  };
+
   // Handle Registration with Mandatory Department Roster Verification
+  const handleSendOtp = () => {
+    if (!regPhone.trim()) {
+      setRegError('Please enter a valid mobile number to send OTP.');
+      return;
+    }
+    setRegError('');
+    const dummyOtp = Math.floor(100000 + Math.random() * 900000).toString();
+    setGeneratedOtp(dummyOtp);
+    setOtpSent(true);
+    setRegisterCountdown(60);
+    setOtpMessage(`Secure verification OTP has been automatically sent to your registered WhatsApp number (+91 ${regPhone.trim()}).`);
+
+    // Simulate receiving a background WhatsApp notification automatically on the current screen
+    setTimeout(() => {
+      triggerNotification(
+        "WhatsApp (Dudhnoi Math Portal)",
+        `Verification Code: ${dummyOtp}. Use this OTP to verify your mobile number and register.`
+      );
+    }, 1500);
+  };
+
+  const handleVerifyOtp = () => {
+    if (otpInput === generatedOtp) {
+      setOtpVerified(true);
+      setRegError('');
+      setOtpMessage('Mobile number verified successfully!');
+    } else {
+      setRegError('Invalid OTP. Please try again.');
+    }
+  };
+
   const handleRegister = (e: React.FormEvent) => {
     e.preventDefault();
     setRegError('');
 
-    if (!regFullName.trim() || !regRollNo.trim() || !regEmail.trim()) {
-      setRegError('Please fill in all mandatory fields (*)');
+    if (!regFullName.trim() || !regRollNo.trim() || !regEmail.trim() || !regPassword) {
+      setRegError('Please fill in all mandatory fields, including password.');
+      return;
+    }
+
+    if (!otpVerified) {
+      setRegError('Please verify your mobile number with OTP before registering.');
       return;
     }
 
@@ -234,6 +463,7 @@ export const StudentPortalModal: React.FC<StudentPortalModalProps> = ({ isOpen, 
       bio: regBio.trim() || `Verified student in the Department of Mathematics, Dudhnoi College (${matched?.selectiveCourse || 'Honours track'}).`,
       mentorName: assignedMentor,
       interests: regInterests.split(',').map((i) => i.trim()).filter(Boolean),
+      password: regPassword,
       registeredDate: new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
     };
 
@@ -259,7 +489,7 @@ export const StudentPortalModal: React.FC<StudentPortalModalProps> = ({ isOpen, 
   };
 
   // Profile Picture File Upload Handler (Data URL)
-  const handleImageFileChange = (e: React.ChangeEvent<HTMLInputElement>, isRegisterForm = false) => {
+  const handleImageFileChange = (e: React.ChangeEvent<HTMLInputElement>, isRegisterForm = false) => { setAvatarError(''); 
     const file = e.target.files?.[0];
     if (!file) return;
 
@@ -268,8 +498,8 @@ export const StudentPortalModal: React.FC<StudentPortalModalProps> = ({ isOpen, 
       return;
     }
 
-    if (file.size > 5 * 1024 * 1024) {
-      alert('Image file size should be under 5MB.');
+    if (file.size > 500 * 1024) {
+      if (isRegisterForm) { setAvatarError('Photo size must be under 500 KB.'); } else { alert('Photo size must be under 500 KB.'); }
       return;
     }
 
@@ -773,9 +1003,23 @@ export const StudentPortalModal: React.FC<StudentPortalModalProps> = ({ isOpen, 
                       </div>
 
                       <div>
-                        <label className="block font-semibold text-slate-700 mb-1">
-                          Password (Optional for Demo Mode)
-                        </label>
+                        <div className="flex items-center justify-between mb-1">
+                          <label className="block font-semibold text-slate-700">
+                            Password
+                          </label>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setAuthMode('forgot');
+                              setForgotError('');
+                              setForgotOtpMessage('');
+                              setForgotSuccess('');
+                            }}
+                            className="text-blue-900 hover:underline text-[11px] font-bold"
+                          >
+                            Forgot Password?
+                          </button>
+                        </div>
                         <input
                           type="password"
                           placeholder="••••••••"
@@ -816,6 +1060,156 @@ export const StudentPortalModal: React.FC<StudentPortalModalProps> = ({ isOpen, 
                         ))}
                       </div>
                     </div>
+                  </div>
+                )}
+
+                {/* MODE C: FORGOT PASSWORD */}
+                {authMode === 'forgot' && (
+                  <div className="max-w-md mx-auto space-y-4">
+                    <div className="text-center space-y-1">
+                      <h4 className="text-base font-bold text-slate-900">Reset Portal Password</h4>
+                      <p className="text-xs text-slate-500">
+                        Verify your account using your registered Mobile/WhatsApp number.
+                      </p>
+                    </div>
+
+                    {forgotError && (
+                      <div className="p-3 rounded-lg bg-red-50 border border-red-200 text-red-700 text-xs flex items-center gap-2">
+                        <AlertCircle className="w-4 h-4 shrink-0" />
+                        <span>{forgotError}</span>
+                      </div>
+                    )}
+
+                    <form onSubmit={handleForgotResetPassword} className="space-y-3.5 text-xs">
+                      <div>
+                        <label className="block font-semibold text-slate-700 mb-1">
+                          Mobile/WhatsApp number *
+                        </label>
+                        <div className="relative flex gap-2">
+                          <div className="relative flex-1">
+                            <Phone className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                            <input
+                              type="tel"
+                              required
+                              disabled={forgotOtpVerified}
+                              placeholder="+91 94350 XXXXX"
+                              value={forgotIdentifier}
+                              onChange={(e) => setForgotIdentifier(e.target.value)}
+                              className="w-full pl-9 pr-3 py-2.5 bg-slate-50 border border-slate-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-900 focus:bg-white transition-all text-xs text-slate-800 disabled:opacity-70"
+                            />
+                          </div>
+                          {!forgotOtpVerified && (
+                            <button
+                              type="button"
+                              disabled={forgotCountdown > 0}
+                              onClick={handleForgotSendOtp}
+                              className={`px-4 py-2.5 font-bold rounded-lg text-xs whitespace-nowrap cursor-pointer transition-all ${
+                                forgotCountdown > 0 
+                                  ? "bg-slate-100 text-slate-400 cursor-not-allowed border border-slate-200" 
+                                  : "bg-slate-200 hover:bg-slate-300 text-slate-800"
+                              }`}
+                            >
+                              {forgotOtpSent 
+                                ? forgotCountdown > 0 
+                                  ? `Resend in ${forgotCountdown}s` 
+                                  : "Resend OTP" 
+                                : "Send OTP"}
+                            </button>
+                          )}
+                        </div>
+                      </div>
+
+                      {forgotOtpMessage && (
+                        <div className={`p-2.5 rounded-lg text-[11px] font-medium leading-relaxed ${
+                          forgotOtpVerified ? 'bg-emerald-50 text-emerald-800 border border-emerald-200 animate-pulse' : 'bg-blue-50 text-blue-800 border border-blue-200'
+                        }`}>
+                          {forgotOtpMessage}
+                        </div>
+                      )}
+
+                      {forgotOtpSent && !forgotOtpVerified && (
+                        <div className="space-y-3 animate-in fade-in slide-in-from-top-2">
+                          {forgotCountdown > 0 && (
+                            <div className="bg-slate-50 border border-slate-200 rounded-lg p-2.5 space-y-1.5">
+                              <div className="flex justify-between items-center text-[10px]">
+                                <span className="text-slate-500 font-medium">OTP Code validity timer</span>
+                                <span className="font-bold text-blue-900 font-mono">{forgotCountdown}s</span>
+                              </div>
+                              <div className="w-full h-1.5 bg-slate-200 rounded-full overflow-hidden">
+                                <div 
+                                  className="h-full bg-blue-900 transition-all duration-1000 ease-linear rounded-full"
+                                  style={{ width: `${(forgotCountdown / 60) * 100}%` }}
+                                />
+                              </div>
+                            </div>
+                          )}
+                          <div className="flex gap-2">
+                            <input
+                              type="text"
+                              placeholder="Enter 6-digit OTP code"
+                              value={forgotOtpInput}
+                              onChange={(e) => setForgotOtpInput(e.target.value)}
+                              className="flex-1 px-3 py-2 bg-blue-50 border border-blue-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-900 focus:bg-white"
+                            />
+                            <button
+                              type="button"
+                              onClick={handleForgotVerifyOtp}
+                              className="px-4 py-2 bg-blue-900 hover:bg-blue-950 text-white font-bold rounded-lg text-xs whitespace-nowrap cursor-pointer transition-colors"
+                            >
+                              Verify OTP
+                            </button>
+                          </div>
+                        </div>
+                      )}
+
+                      {forgotOtpVerified && (
+                        <div className="space-y-3 p-4 rounded-xl bg-blue-50/50 border border-blue-100 animate-in fade-in slide-in-from-top-4">
+                          <div>
+                            <label className="block font-semibold text-slate-700 mb-1">New Password *</label>
+                            <input
+                              type="password"
+                              required
+                              placeholder="Create a strong password"
+                              value={forgotNewPassword}
+                              onChange={(e) => setForgotNewPassword(e.target.value)}
+                              className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-900"
+                            />
+                          </div>
+                          <div>
+                            <label className="block font-semibold text-slate-700 mb-1">Confirm New Password *</label>
+                            <input
+                              type="password"
+                              required
+                              placeholder="Re-enter to confirm"
+                              value={forgotConfirmPassword}
+                              onChange={(e) => setForgotConfirmPassword(e.target.value)}
+                              className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-900"
+                            />
+                          </div>
+                        </div>
+                      )}
+
+                      <div className="flex items-center gap-3 pt-2">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setAuthMode('login');
+                            setLoginError('');
+                          }}
+                          className="flex-1 py-2.5 border border-slate-300 hover:bg-slate-50 text-slate-700 font-bold rounded-xl transition-colors cursor-pointer text-xs text-center"
+                        >
+                          Cancel
+                        </button>
+                        {forgotOtpVerified && (
+                          <button
+                            type="submit"
+                            className="flex-1 py-2.5 bg-blue-900 hover:bg-blue-950 text-white font-bold rounded-xl shadow-xs transition-colors cursor-pointer text-xs"
+                          >
+                            Reset Password
+                          </button>
+                        )}
+                      </div>
+                    </form>
                   </div>
                 )}
 
@@ -909,6 +1303,7 @@ export const StudentPortalModal: React.FC<StudentPortalModalProps> = ({ isOpen, 
                                 <span>Upload Photo From Computer/Phone</span>
                               </button>
                             </div>
+                            {avatarError && <p className="text-red-600 text-xs font-semibold">{avatarError}</p>}
                             <p className="text-[11px] text-slate-500">
                               Or pick one of our mathematics scholar avatar presets:
                             </p>
@@ -983,14 +1378,81 @@ export const StudentPortalModal: React.FC<StudentPortalModalProps> = ({ isOpen, 
                         </div>
 
                         <div>
-                          <label className="block font-semibold text-slate-700 mb-1">Mobile / WhatsApp Number</label>
-                          <input
-                            type="tel"
-                            placeholder="+91 94350 XXXXX"
-                            value={regPhone}
-                            onChange={(e) => setRegPhone(e.target.value)}
-                            className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-900 focus:bg-white"
-                          />
+                          <label className="block font-semibold text-slate-700 mb-1">Mobile / WhatsApp Number *</label>
+                          <div className="flex gap-2">
+                            <input
+                              type="tel"
+                              placeholder="+91 94350 XXXXX"
+                              value={regPhone}
+                              onChange={(e) => setRegPhone(e.target.value)}
+                              disabled={otpVerified}
+                              className="flex-1 px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-900 focus:bg-white disabled:opacity-70"
+                            />
+                            {!otpVerified && (
+                              <button
+                                type="button"
+                                disabled={registerCountdown > 0}
+                                onClick={handleSendOtp}
+                                className={`px-3 py-2 font-bold rounded-lg text-xs whitespace-nowrap transition-all ${
+                                  registerCountdown > 0 
+                                    ? "bg-slate-100 text-slate-400 cursor-not-allowed border border-slate-200" 
+                                    : "bg-slate-200 hover:bg-slate-300 text-slate-800"
+                                }`}
+                              >
+                                {otpSent 
+                                  ? registerCountdown > 0 
+                                    ? `Resend in ${registerCountdown}s` 
+                                    : "Resend" 
+                                  : "Send OTP"}
+                              </button>
+                            )}
+                            {otpVerified && (
+                              <div className="px-3 py-2 bg-emerald-100 text-emerald-800 font-bold rounded-lg text-xs flex items-center">
+                                <CheckCircle2 className="w-4 h-4 mr-1" /> Verified
+                              </div>
+                            )}
+                          </div>
+                          {otpMessage && (
+                            <div className={`mt-1.5 p-2 rounded-md text-[11px] font-medium leading-relaxed ${
+                              otpVerified ? 'bg-emerald-50 text-emerald-800 border border-emerald-200 animate-pulse' : 'bg-blue-50 text-blue-800 border border-blue-200'
+                            }`}>
+                              {otpMessage}
+                            </div>
+                          )}
+                          {otpSent && !otpVerified && (
+                            <div className="mt-2 space-y-2 animate-in fade-in slide-in-from-top-2">
+                              {registerCountdown > 0 && (
+                                <div className="bg-slate-50 border border-slate-200 rounded-lg p-2.5 space-y-1.5">
+                                  <div className="flex justify-between items-center text-[10px]">
+                                    <span className="text-slate-500 font-medium">OTP Code validity timer</span>
+                                    <span className="font-bold text-blue-900 font-mono">{registerCountdown}s</span>
+                                  </div>
+                                  <div className="w-full h-1.5 bg-slate-200 rounded-full overflow-hidden">
+                                    <div 
+                                      className="h-full bg-blue-900 transition-all duration-1000 ease-linear rounded-full"
+                                      style={{ width: `${(registerCountdown / 60) * 100}%` }}
+                                    />
+                                  </div>
+                                </div>
+                              )}
+                              <div className="flex gap-2">
+                                <input
+                                  type="text"
+                                  placeholder="Enter OTP"
+                                  value={otpInput}
+                                  onChange={(e) => setOtpInput(e.target.value)}
+                                  className="flex-1 px-3 py-2 bg-blue-50 border border-blue-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-900 focus:bg-white"
+                                />
+                                <button
+                                  type="button"
+                                  onClick={handleVerifyOtp}
+                                  className="px-3 py-2 bg-blue-900 hover:bg-blue-950 text-white font-bold rounded-lg text-xs whitespace-nowrap cursor-pointer"
+                                >
+                                  Verify
+                                </button>
+                              </div>
+                            </div>
+                          )}
                         </div>
 
                         <div>
@@ -1006,6 +1468,34 @@ export const StudentPortalModal: React.FC<StudentPortalModalProps> = ({ isOpen, 
                           </select>
                         </div>
                       </div>
+
+                      {/* Password Creation (Locked behind OTP) */}
+                      {otpVerified && (
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-4 rounded-xl bg-blue-50/50 border border-blue-100 animate-in fade-in slide-in-from-top-4">
+                          <div>
+                            <label className="block font-semibold text-slate-700 mb-1">Create Password *</label>
+                            <input
+                              type="password"
+                              required
+                              placeholder="Create a strong password"
+                              value={regPassword}
+                              onChange={(e) => setRegPassword(e.target.value)}
+                              className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-900"
+                            />
+                          </div>
+                          <div>
+                            <label className="block font-semibold text-slate-700 mb-1">Confirm Password *</label>
+                            <input
+                              type="password"
+                              required
+                              placeholder="Re-enter password"
+                              value={regConfirmPassword}
+                              onChange={(e) => setRegConfirmPassword(e.target.value)}
+                              className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-900"
+                            />
+                          </div>
+                        </div>
+                      )}
 
                       {/* Semester & Batch */}
                       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
@@ -1317,6 +1807,35 @@ export const StudentPortalModal: React.FC<StudentPortalModalProps> = ({ isOpen, 
             </div>
 
           </div>
+        </div>
+      )}
+
+      {/* REAL-TIME OVER-THE-AIR BACKGROUND MESSAGE DELIVERY NOTIFICATION SYSTEM */}
+      {activeNotifications.length > 0 && (
+        <div className="fixed top-4 right-4 z-[9999] flex flex-col gap-3 max-w-sm w-full animate-in fade-in slide-in-from-top-5 duration-300">
+          {activeNotifications.map((n) => (
+            <div 
+              key={n.id} 
+              className="bg-slate-950/95 backdrop-blur-md text-white rounded-2xl p-4 shadow-2xl border border-slate-800 flex flex-col gap-1 w-full"
+            >
+              <div className="flex items-center justify-between text-[11px] text-slate-400">
+                <div className="flex items-center gap-2">
+                  <div className="w-5 h-5 rounded-full bg-emerald-600 flex items-center justify-center font-bold text-[9px] text-white">
+                    💬
+                  </div>
+                  <span className="font-extrabold text-emerald-400 text-[11px] uppercase tracking-wide">{n.sender}</span>
+                </div>
+                <span className="text-[10px] text-slate-500 font-mono">now</span>
+              </div>
+              <p className="text-xs text-slate-100 font-medium leading-relaxed mt-1.5">
+                {n.text}
+              </p>
+              <div className="mt-2.5 p-2 bg-emerald-950/40 border border-emerald-900/50 rounded-lg text-[10px] text-emerald-300 font-medium flex items-center gap-1.5">
+                <span className="animate-ping rounded-full h-1.5 w-1.5 bg-emerald-400" />
+                <span>Simulated secure WhatsApp OTP Delivery Active</span>
+              </div>
+            </div>
+          ))}
         </div>
       )}
     </div>

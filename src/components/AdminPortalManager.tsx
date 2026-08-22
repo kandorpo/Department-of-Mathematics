@@ -1075,8 +1075,8 @@ export const AdminPortalManager: React.FC = () => {
                 </div>
               </div>
 
-              {/* Row 2: Program, Semester, Class Section */}
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              {/* Row 2: Program, Semester */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block font-semibold text-slate-700 mb-1">Program / Course *</label>
                   <select
@@ -1110,25 +1110,17 @@ export const AdminPortalManager: React.FC = () => {
                     <option>Graduated (Alumni)</option>
                   </select>
                 </div>
-                <div>
-                  <label className="block font-semibold text-slate-700 mb-1">Class / Section / Batch</label>
-                  <input
-                    type="text"
-                    value={studentForm.classSection || studentForm.batch || '2024 - 2028'}
-                    onChange={(e) => setStudentForm({ ...studentForm, classSection: e.target.value, batch: e.target.value })}
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-900 focus:bg-white"
-                  />
-                </div>
               </div>
 
-              {/* Row 3: Email, Phone, Mentor */}
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              {/* Row 3: CGPA, Phone */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className="block font-semibold text-slate-700 mb-1">Student Official Email</label>
+                  <label className="block font-semibold text-slate-700 mb-1">Current CGPA / Percentage</label>
                   <input
-                    type="email"
-                    value={studentForm.email || ''}
-                    onChange={(e) => setStudentForm({ ...studentForm, email: e.target.value })}
+                    type="number"
+                    step="0.01"
+                    value={studentForm.cgpa || ''}
+                    onChange={(e) => setStudentForm({ ...studentForm, cgpa: parseFloat(e.target.value) || 0 })}
                     className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-900 focus:bg-white"
                   />
                 </div>
@@ -1141,48 +1133,8 @@ export const AdminPortalManager: React.FC = () => {
                     className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-900 focus:bg-white"
                   />
                 </div>
-                <div>
-                  <label className="block font-semibold text-slate-700 mb-1">Assigned Faculty Mentor</label>
-                  <input
-                    type="text"
-                    value={studentForm.mentorName || 'Dr. Bidyut Kalita (HOD)'}
-                    onChange={(e) => setStudentForm({ ...studentForm, mentorName: e.target.value })}
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-900 focus:bg-white"
-                  />
-                </div>
               </div>
-
-              {/* Row 4: CGPA, Blood Group, Father's Name */}
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                <div>
-                  <label className="block font-semibold text-slate-700 mb-1">Current CGPA / Percentage</label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    value={studentForm.cgpa || ''}
-                    onChange={(e) => setStudentForm({ ...studentForm, cgpa: parseFloat(e.target.value) || 0 })}
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-900 focus:bg-white"
-                  />
-                </div>
-                <div>
-                  <label className="block font-semibold text-slate-700 mb-1">Blood Group</label>
-                  <input
-                    type="text"
-                    value={studentForm.bloodGroup || 'O+'}
-                    onChange={(e) => setStudentForm({ ...studentForm, bloodGroup: e.target.value })}
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-900 focus:bg-white"
-                  />
-                </div>
-                <div>
-                  <label className="block font-semibold text-slate-700 mb-1">Father's / Guardian's Name</label>
-                  <input
-                    type="text"
-                    value={studentForm.fatherName || ''}
-                    onChange={(e) => setStudentForm({ ...studentForm, fatherName: e.target.value })}
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-900 focus:bg-white"
-                  />
-                </div>
-              </div>
+$s/\$//
 
               {/* Row 5: Avatar Image URL */}
               <div>

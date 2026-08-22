@@ -16,7 +16,7 @@ export interface FacultyMember {
   designation: FacultyDesignation;
   qualification: string;
   specialization: string;
-  email: string;
+  email?: string;
   phone?: string;
   roomNo?: string;
   image: string;
@@ -145,8 +145,8 @@ export interface DepartmentStudent {
   courseProgram: 'B.Sc. Mathematics (Honours/Major)' | 'B.Sc. Mathematics (Minor)' | 'M.Sc. Mathematics' | 'FYUGP Mathematics (Major)' | 'FYUGP Mathematics (Minor)' | 'Skill Enhancement (SEC/VAC)' | 'Value Added & SEC Computing';
   selectiveCourse: string; // e.g. "MAT-MAJ-101: Calculus & Geometry", "MAT-MIN-101: Principles of Mathematics", "MAT-SEC-301: Scientific Computing with Python", etc.
   semester: string;
-  batch: string;
-  email: string;
+  batch?: string;
+  email?: string;
   phone?: string;
   status: 'Active' | 'Alumni' | 'Transferred' | 'Enrolled' | 'Graduated' | 'Suspended';
   mentorName?: string;
@@ -218,14 +218,15 @@ export interface StudentProfile {
   rollNo: string;
   guRegNo?: string;
   classSection?: string;
-  email: string;
+  email?: string;
   phone: string;
   semester: string;
   program: 'B.Sc. Mathematics (Honours/Major)' | 'B.Sc. Mathematics (Minor)' | 'M.Sc. Mathematics' | 'FYUGP Mathematics (Major)' | 'FYUGP Mathematics (Minor)' | 'Skill Enhancement (SEC/VAC)';
   selectiveCourse?: string;
-  batch: string;
+  batch?: string;
   avatar: string;
   bio?: string;
+  password?: string;
   mentorName?: string;
   interests?: string[];
   registeredDate: string;
@@ -265,4 +266,27 @@ export interface BlogPost {
   likesCount?: number;
   featured?: boolean;
 }
+
+export interface AdminAccount {
+  id: string;
+  username: string;
+  email: string;
+  fullName: string;
+  role: 'Super Admin' | 'Department Admin' | 'HOD' | 'Faculty Editor';
+  passwordHash: string;
+  lastLogin?: string;
+  status: 'Active' | 'Suspended';
+}
+
+export interface AdminRegistrationRequest {
+  id: string;
+  fullName: string;
+  username: string;
+  email: string;
+  role: 'HOD' | 'Department Admin' | 'Faculty Editor';
+  passwordHash: string;
+  requestDate: string;
+  status: 'Pending' | 'Approved' | 'Rejected';
+}
+
 
