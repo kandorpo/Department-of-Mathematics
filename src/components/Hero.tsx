@@ -108,25 +108,7 @@ export const Hero: React.FC<HeroProps> = ({
               </button>
             </div>
 
-            {/* Feature Badges */}
-            <div className="pt-4 grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs text-slate-300">
-              <div className="flex items-center gap-2 p-2 rounded-md bg-slate-800/40 border border-slate-700/40">
-                <BookOpen className="w-4 h-4 text-amber-400 shrink-0" />
-                <span>UG & PG Programs</span>
-              </div>
-              <div className="flex items-center gap-2 p-2 rounded-md bg-slate-800/40 border border-slate-700/40">
-                <Terminal className="w-4 h-4 text-emerald-400 shrink-0" />
-                <span>Computational Lab</span>
-              </div>
-              <div className="flex items-center gap-2 p-2 rounded-md bg-slate-800/40 border border-slate-700/40">
-                <Sparkles className="w-4 h-4 text-sky-400 shrink-0" />
-                <span>Ramanujan Club</span>
-              </div>
-              <div className="flex items-center gap-2 p-2 rounded-md bg-slate-800/40 border border-slate-700/40">
-                <Award className="w-4 h-4 text-indigo-400 shrink-0" />
-                <span>Active Research</span>
-              </div>
-            </div>
+
 
           </div>
 

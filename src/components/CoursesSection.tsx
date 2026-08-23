@@ -41,7 +41,7 @@ export const CoursesSection: React.FC = () => {
 
       return matchesLevel && matchesSearch;
     });
-  }, [selectedLevel, searchQuery]);
+  }, [COURSES_DATA, selectedLevel, searchQuery]);
 
   return (
     <section id="courses" className="py-20 bg-slate-50 border-b border-slate-200/80">

@@ -33,7 +33,7 @@ import {
   Info,
   AlertTriangle
 } from 'lucide-react';
-import { STUDENT_RESOURCES, DEFAULT_STUDENT_PROFILES } from '../data/departmentData';
+import { DEFAULT_STUDENT_PROFILES } from '../data/departmentData';
 import { StudentProfile } from '../types';
 import { useDepartmentData } from '../context/DataContext';
 import { downloadStudyResourcePDF, downloadClassRoutinePDF } from '../utils/downloadHelper';
@@ -44,7 +44,6 @@ interface StudentPortalModalProps {
 }
 
 const STORAGE_KEY_STUDENT = 'dudhnoi_math_student_user';
-const STORAGE_KEY_REGISTERED_LIST = 'dudhnoi_math_registered_students';
 
 const PRESET_AVATARS = [
   'https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?auto=format&fit=crop&q=80&w=400',
@@ -113,14 +112,23 @@ export const StudentPortalModal: React.FC<StudentPortalModalProps> = ({ isOpen, 
     }
   }, [registerCountdown]);
 
-  const { faculty, departmentStudents, verifyStudentEligibility, routineSlots } = useDepartmentData();
+  const {
+    faculty,
+    departmentStudents,
+    verifyStudentEligibility,
+    routineSlots,
+    registeredStudentProfiles,
+    addRegisteredStudentProfile,
+    updateRegisteredStudentProfile,
+    portalResources
+  } = useDepartmentData();
 
   const [activeTab, setActiveTab] = useState<'profile' | 'downloads' | 'routine'>('profile');
   const [authMode, setAuthMode] = useState<'login' | 'register' | 'forgot'>('login');
 
   // Stored / Logged-in Student state
   const [currentStudent, setCurrentStudent] = useState<StudentProfile | null>(null);
-  const [registeredStudents, setRegisteredStudents] = useState<StudentProfile[]>(DEFAULT_STUDENT_PROFILES);
+  const registeredStudents = registeredStudentProfiles || DEFAULT_STUDENT_PROFILES;
 
   // Login form state
   const [loginIdentifier, setLoginIdentifier] = useState('');
@@ -188,13 +196,6 @@ export const StudentPortalModal: React.FC<StudentPortalModalProps> = ({ isOpen, 
       const storedUser = localStorage.getItem(STORAGE_KEY_STUDENT);
       if (storedUser) {
         setCurrentStudent(JSON.parse(storedUser));
-      }
-
-      const storedList = localStorage.getItem(STORAGE_KEY_REGISTERED_LIST);
-      if (storedList) {
-        setRegisteredStudents(JSON.parse(storedList));
-      } else {
-        localStorage.setItem(STORAGE_KEY_REGISTERED_LIST, JSON.stringify(DEFAULT_STUDENT_PROFILES));
       }
     } catch (err) {
       console.error('Error loading student profile from localStorage:', err);
@@ -332,19 +333,22 @@ export const StudentPortalModal: React.FC<StudentPortalModalProps> = ({ isOpen, 
 
     const query = forgotIdentifier.trim().toLowerCase();
     const cleanQuery = query.replace(/[^0-9]/g, '');
-    const updatedList = registeredStudents.map((s) => {
-      if (!s.phone) return s;
-      const cleanPhone = s.phone.replace(/[^0-9]/g, '');
-      const match = (cleanQuery.length >= 10 && cleanPhone.endsWith(cleanQuery)) ||
-                    s.phone.toLowerCase().includes(query);
-      if (match) {
-        return { ...s, password: forgotNewPassword };
-      }
-      return s;
+    const matched = registeredStudents.find((s) => {
+      const cleanPhone = (s.phone || '').replace(/[^0-9]/g, '');
+      return (s.email && s.email.toLowerCase() === query) ||
+             (s.roll && s.roll.toLowerCase() === query) ||
+             (cleanQuery.length >= 10 && cleanPhone.endsWith(cleanQuery)) ||
+             (s.phone && s.phone.toLowerCase().includes(query));
     });
 
-    setRegisteredStudents(updatedList);
-    localStorage.setItem(STORAGE_KEY_REGISTERED_LIST, JSON.stringify(updatedList));
+    if (matched) {
+      const updated = { ...matched, password: forgotNewPassword };
+      updateRegisteredStudentProfile(updated);
+      if (currentStudent && currentStudent.id === matched.id) {
+        setCurrentStudent(updated);
+        localStorage.setItem(STORAGE_KEY_STUDENT, JSON.stringify(updated));
+      }
+    }
 
     // Clear forgot states
     setForgotIdentifier('');
@@ -467,11 +471,9 @@ export const StudentPortalModal: React.FC<StudentPortalModalProps> = ({ isOpen, 
       registeredDate: new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
     };
 
-    const updatedList = [newStudent, ...registeredStudents];
-    setRegisteredStudents(updatedList);
+    addRegisteredStudentProfile(newStudent);
     setCurrentStudent(newStudent);
 
-    localStorage.setItem(STORAGE_KEY_REGISTERED_LIST, JSON.stringify(updatedList));
     localStorage.setItem(STORAGE_KEY_STUDENT, JSON.stringify(newStudent));
 
     setRegSuccess(true);
@@ -514,10 +516,7 @@ export const StudentPortalModal: React.FC<StudentPortalModalProps> = ({ isOpen, 
         setCurrentStudent(updated);
         localStorage.setItem(STORAGE_KEY_STUDENT, JSON.stringify(updated));
 
-        // update list
-        const updatedList = registeredStudents.map((s) => (s.id === updated.id ? updated : s));
-        setRegisteredStudents(updatedList);
-        localStorage.setItem(STORAGE_KEY_REGISTERED_LIST, JSON.stringify(updatedList));
+        updateRegisteredStudentProfile(updated);
       }
       setAvatarUploadLoading(false);
     };
@@ -537,9 +536,7 @@ export const StudentPortalModal: React.FC<StudentPortalModalProps> = ({ isOpen, 
     setCurrentStudent(updated);
     localStorage.setItem(STORAGE_KEY_STUDENT, JSON.stringify(updated));
 
-    const updatedList = registeredStudents.map((s) => (s.id === updated.id ? updated : s));
-    setRegisteredStudents(updatedList);
-    localStorage.setItem(STORAGE_KEY_REGISTERED_LIST, JSON.stringify(updatedList));
+    updateRegisteredStudentProfile(updated);
 
     setIsEditingProfile(false);
   };
@@ -731,9 +728,7 @@ export const StudentPortalModal: React.FC<StudentPortalModalProps> = ({ isOpen, 
                             const updated = { ...currentStudent, avatar: imgUrl };
                             setCurrentStudent(updated);
                             localStorage.setItem(STORAGE_KEY_STUDENT, JSON.stringify(updated));
-                            const updatedList = registeredStudents.map((s) => (s.id === updated.id ? updated : s));
-                            setRegisteredStudents(updatedList);
-                            localStorage.setItem(STORAGE_KEY_REGISTERED_LIST, JSON.stringify(updatedList));
+                            updateRegisteredStudentProfile(updated);
                           }}
                           className={`w-7 h-7 rounded-full overflow-hidden border-2 transition-transform hover:scale-110 cursor-pointer ${
                             currentStudent.avatar === imgUrl ? 'border-amber-400 ring-2 ring-amber-400/50' : 'border-slate-700 opacity-70 hover:opacity-100'
@@ -1583,7 +1578,7 @@ export const StudentPortalModal: React.FC<StudentPortalModalProps> = ({ isOpen, 
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              {STUDENT_RESOURCES.map((item, idx) => (
+              {portalResources.map((item, idx) => (
                 <div
                   key={idx}
                   className="p-4 rounded-xl bg-slate-50 border border-slate-200/90 hover:border-blue-900/40 hover:bg-white transition-all space-y-2 flex flex-col justify-between"

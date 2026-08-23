@@ -1492,9 +1492,11 @@ export const AdminStudentsSection: React.FC<AdminStudentsSectionProps> = ({
                             <button
                               onClick={(e) => {
                                   e.stopPropagation();
-                                  console.log('Delete button clicked for student ID:', stu.id);
-                                  onDeleteStudent(stu.id);
-                                  showStatus(`Student "${stu.fullName}" removed.`);
+                                  if (window.confirm(`Are you sure you want to permanently delete the student profile for "${stu.fullName}"?`)) {
+                                    console.log('Delete button clicked for student ID:', stu.id);
+                                    onDeleteStudent(stu.id);
+                                    showStatus(`Student "${stu.fullName}" removed.`);
+                                  }
                               }}
                               className="p-1.5 text-slate-500 hover:text-red-600 hover:bg-red-50 rounded-md transition-colors cursor-pointer pointer-events-auto"
                               title="Delete"

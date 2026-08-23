@@ -11,7 +11,6 @@ import { EventsSection } from './components/EventsSection';
 import { NoticeBoard } from './components/NoticeBoard';
 import { AchievementsSection } from './components/AchievementsSection';
 import { GallerySection } from './components/GallerySection';
-import { BlogSection } from './components/BlogSection';
 import { QuoteSection } from './components/QuoteSection';
 import { ContactSection } from './components/ContactSection';
 import { Footer } from './components/Footer';
@@ -26,7 +25,7 @@ function AppContent() {
   const [isStudentPortalOpen, setIsStudentPortalOpen] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
 
-  const { setIsAdminOpen, isAdminLoggedIn } = useDepartmentData();
+  const { setIsAdminOpen, isAdminLoggedIn, isDatabaseQuotaExceeded } = useDepartmentData();
 
   // Scroll spy to update active section in header
   useEffect(() => {
@@ -40,7 +39,6 @@ function AppContent() {
       'notices',
       'achievements',
       'gallery',
-      'blog',
       'contact'
     ];
 
@@ -87,6 +85,33 @@ function AppContent() {
         onOpenSearch={() => setIsSearchOpen(true)}
       />
 
+      {isDatabaseQuotaExceeded && (
+        <div className="bg-amber-500/10 border-b border-amber-500/20 px-4 py-3 sm:px-6 z-50 text-amber-900 animate-fadeIn">
+          <div className="max-w-7xl mx-auto flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2.5">
+            <div className="flex items-start gap-3">
+              <span className="flex-shrink-0 p-1.5 bg-amber-500 text-slate-900 rounded-lg shadow-sm mt-0.5 sm:mt-0">
+                <svg className="w-4 h-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="2.5" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+              </span>
+              <div>
+                <p className="text-sm font-bold text-amber-950">
+                  Offline Sandbox Mode (Cloud Connection Offline or Quota Reached)
+                </p>
+                <p className="text-xs text-amber-900/80 mt-0.5">
+                  The Google Cloud Firestore database is currently unreachable or the daily free-tier quota has been exhausted. All features remain <strong className="font-semibold text-amber-950">fully operational</strong>. All edits, faculty updates, circular posts, and student accounts are stored instantly inside your browser's local sandbox storage.
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2 mt-1 sm:mt-0 self-end sm:self-center">
+              <span className="px-2 py-1 text-[10px] uppercase font-black bg-amber-500/20 text-amber-950 rounded border border-amber-500/30 tracking-wider">
+                Fully Functional
+              </span>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Main Content Area */}
       <main className="flex-1">
         {/* Hero Section */}
@@ -122,9 +147,6 @@ function AppContent() {
 
         {/* Department Gallery & Lightbox */}
         <GallerySection />
-
-        {/* Department Blog & Articles Hub */}
-        <BlogSection />
 
         {/* Full-width Mathematical Quote Banner */}
         <QuoteSection />

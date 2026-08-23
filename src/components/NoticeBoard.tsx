@@ -37,7 +37,7 @@ export const NoticeBoard: React.FC = () => {
 
       return matchesCat && matchesSearch;
     });
-  }, [activeCategory, searchQuery]);
+  }, [NOTICES_DATA, activeCategory, searchQuery]);
 
   return (
     <section id="notices" className="py-20 bg-white border-b border-slate-200/80">

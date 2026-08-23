@@ -49,7 +49,7 @@ export const FacultySection: React.FC = () => {
 
       return matchesCategory && matchesSearch;
     });
-  }, [selectedCategory, searchQuery]);
+  }, [FACULTY_DATA, selectedCategory, searchQuery]);
 
   return (
     <section id="faculty" className="py-20 bg-white border-b border-slate-200/80">

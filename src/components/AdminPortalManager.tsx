@@ -634,8 +634,10 @@ export const AdminPortalManager: React.FC = () => {
                             </button>
                             <button
                               onClick={() => {
+                                if (window.confirm(`Are you sure you want to permanently delete the student profile and portal access for "${stu.fullName}"?`)) {
                                   deleteRegisteredStudentProfile(stu.id);
                                   showStatus(`Deleted student account ${stu.fullName}.`);
+                                }
                               }}
                               className="p-1.5 text-red-600 hover:bg-red-50 rounded-lg transition-colors cursor-pointer"
                               title="Delete account"

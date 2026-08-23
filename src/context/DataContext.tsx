@@ -132,6 +132,7 @@ interface DataContextType {
   admins: AdminAccount[];
   currentAdmin: AdminAccount | null;
   adminRegistrationRequests: AdminRegistrationRequest[];
+  isDatabaseQuotaExceeded: boolean;
 
   // Admin Modal & Auth
   isAdminOpen: boolean;
@@ -318,6 +319,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const [admins, setAdmins] = useState<AdminAccount[]>(DEFAULT_ADMIN_ACCOUNTS);
   const [currentAdmin, setCurrentAdmin] = useState<AdminAccount | null>(null);
   const [adminRegistrationRequests, setAdminRegistrationRequests] = useState<AdminRegistrationRequest[]>([]);
+  const [isDatabaseQuotaExceeded, setIsDatabaseQuotaExceeded] = useState(false);
 
   // Helper to sync faculty count in stats
   const syncFacultyCount = (facList: FacultyMember[], statsList: DepartmentStat[]): DepartmentStat[] => {
@@ -389,6 +391,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     const connectionTimeout = setTimeout(() => {
       console.warn('Firestore connection timeout: falling back to localStorage cache for initial render');
       setIsLoading(false);
+      setIsDatabaseQuotaExceeded(true);
     }, 2000);
 
     let unsub: (() => void) | null = null;
@@ -397,6 +400,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         DOC_REF,
         (docSnap) => {
           clearTimeout(connectionTimeout);
+          setIsDatabaseQuotaExceeded(false);
           if (docSnap.exists()) {
             const data = docSnap.data() as Partial<DepartmentCMSData>;
             if (data.departmentInfo) setDepartmentInfo((prev) => ({ ...prev, ...data.departmentInfo }));
@@ -463,17 +467,26 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
               adminRegistrationRequests: []
             };
             setDoc(DOC_REF, initialSeed, { merge: true }).catch((err) => {
-              console.warn('Initial Firestore seed warning:', err);
-              handleFirestoreError(err, OperationType.WRITE, 'department_cms/master');
+              console.warn('Initial Firestore seed warning handled gracefully:', err);
+              if (err?.code === 'resource-exhausted' || err?.message?.includes('quota') || err?.message?.includes('payload')) {
+                setIsDatabaseQuotaExceeded(true);
+              }
             });
           }
           setIsLoading(false);
         },
-        (error) => {
+        (error: any) => {
           clearTimeout(connectionTimeout);
           console.warn('Firestore real-time sync subscription error:', error);
           setIsLoading(false);
-          handleFirestoreError(error, OperationType.GET, 'department_cms/master');
+          setIsDatabaseQuotaExceeded(true);
+          const errInfo = {
+            error: error instanceof Error ? error.message : String(error),
+            code: error?.code || null,
+            operationType: 'get',
+            path: 'department_cms/master'
+          };
+          console.error('Firestore Error Handled Gracefully (Falling back to local-only mode): ', JSON.stringify(errInfo));
         }
       );
     } catch (err) {
@@ -543,14 +556,21 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
     // 2. Save to Google Cloud Firestore (triggers real-time update on all client screens)
     try {
-      setDoc(DOC_REF, data, { merge: true }).catch((err) => {
+      setDoc(DOC_REF, data, { merge: true }).catch((err: any) => {
         console.error('Failed to sync changes to Google Cloud Firestore:', err);
-        if (err?.code === 'resource-exhausted' || err?.message?.includes('payload')) {
-          console.warn('Error: The total size of images and data exceeds the cloud storage limit (1MB). Please upload smaller images.');
+        if (err?.code === 'resource-exhausted' || err?.message?.includes('quota') || err?.message?.includes('payload')) {
+          console.warn('Error: Cloud database quota has been exceeded or image size is too large.');
+          setIsDatabaseQuotaExceeded(true);
         } else {
           console.warn('Warning: Cloud sync failed. Changes are saved locally.');
         }
-        handleFirestoreError(err, OperationType.WRITE, 'department_cms/master');
+        const errInfo = {
+          error: err instanceof Error ? err.message : String(err),
+          code: err?.code || null,
+          operationType: 'write',
+          path: 'department_cms/master'
+        };
+        console.error('Firestore Write Error Handled Gracefully: ', JSON.stringify(errInfo));
       });
     } catch (err) {
       console.error('Error invoking setDoc on Firestore:', err);
@@ -1393,7 +1413,8 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         resetAllToDefaults,
         exportDataJson,
         importDataJson,
-        isLoading
+        isLoading,
+        isDatabaseQuotaExceeded
       }}
     >
       {children}

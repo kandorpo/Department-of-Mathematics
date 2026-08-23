@@ -53,7 +53,6 @@ export const Navbar: React.FC<NavbarProps> = ({
     { name: 'Notices', href: '#notices' },
     { name: 'Achievements', href: '#achievements' },
     { name: 'Gallery', href: '#gallery' },
-    { name: 'Blog', href: '#blog' },
     { name: 'Contact', href: '#contact' },
   ];
 
@@ -104,13 +103,24 @@ export const Navbar: React.FC<NavbarProps> = ({
           >
             {/* Academic Crest Emblem */}
             <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-lg bg-gradient-to-br from-blue-950 via-slate-900 to-blue-900 flex items-center justify-center text-white shadow-sm border border-blue-800/40 relative overflow-hidden group-hover:scale-105 transition-transform duration-200">
-              <div className="absolute inset-0 bg-[radial-gradient(#60a5fa_1px,transparent_1px)] [background-size:6px_6px] opacity-20"></div>
-              <span className="text-xl font-serif font-bold text-amber-400 select-none">
-                ∑
-              </span>
-              <span className="absolute bottom-0.5 right-1 text-[8px] font-mono text-blue-200 font-bold">
-                π
-              </span>
+              {DEPARTMENT_INFO.logoUrl ? (
+                <img
+                  src={DEPARTMENT_INFO.logoUrl}
+                  alt="Logo"
+                  className="w-full h-full object-contain p-0.5"
+                  referrerPolicy="no-referrer"
+                />
+              ) : (
+                <>
+                  <div className="absolute inset-0 bg-[radial-gradient(#60a5fa_1px,transparent_1px)] [background-size:6px_6px] opacity-20"></div>
+                  <span className="text-xl font-serif font-bold text-amber-400 select-none">
+                    ∑
+                  </span>
+                  <span className="absolute bottom-0.5 right-1 text-[8px] font-mono text-blue-200 font-bold">
+                    π
+                  </span>
+                </>
+              )}
             </div>
 
             <div>

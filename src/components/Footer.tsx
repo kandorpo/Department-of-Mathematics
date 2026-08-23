@@ -43,7 +43,6 @@ export const Footer: React.FC<FooterProps> = ({ onOpenStudentPortal }) => {
     { name: 'Department Notices & Routine', href: '#notices' },
     { name: 'Student & Faculty Accolades', href: '#achievements' },
     { name: 'Photo & Magazine Gallery', href: '#gallery' },
-    { name: 'Department Blog & Articles', href: '#blog' },
     { name: 'Contact & Office Hours', href: '#contact' },
   ];
 
@@ -69,8 +68,17 @@ export const Footer: React.FC<FooterProps> = ({ onOpenStudentPortal }) => {
           {/* Col 1: Department Branding & Overview (4 cols) */}
           <div className="lg:col-span-4 space-y-4">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-blue-900 to-indigo-950 flex items-center justify-center text-white border border-blue-700/50 shadow-md">
-                <span className="text-xl font-serif font-bold text-amber-400">∑</span>
+              <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-blue-900 to-indigo-950 flex items-center justify-center text-white border border-blue-700/50 shadow-md overflow-hidden">
+                {DEPARTMENT_INFO.logoUrl ? (
+                  <img
+                    src={DEPARTMENT_INFO.logoUrl}
+                    alt="Logo"
+                    className="w-full h-full object-contain p-0.5"
+                    referrerPolicy="no-referrer"
+                  />
+                ) : (
+                  <span className="text-xl font-serif font-bold text-amber-400">∑</span>
+                )}
               </div>
               <div>
                 <h3 className="text-base font-bold text-white tracking-tight font-heading">

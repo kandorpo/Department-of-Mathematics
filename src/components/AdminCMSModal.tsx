@@ -934,18 +934,6 @@ export const AdminCMSModal: React.FC = () => {
               </button>
 
               <button
-                onClick={() => setActiveTab('blogs')}
-                className={`px-3 py-2 rounded-xl font-bold flex items-center gap-2 text-left whitespace-nowrap transition-colors cursor-pointer ${
-                  activeTab === 'blogs'
-                    ? 'bg-blue-900 text-white shadow-2xs'
-                    : 'text-slate-700 hover:bg-slate-200'
-                }`}
-              >
-                <FileText className="w-4 h-4 shrink-0" />
-                <span>Blog Articles ({blogs.length})</span>
-              </button>
-
-              <button
                 onClick={() => setActiveTab('welcome')}
                 className={`px-3 py-2 rounded-xl font-bold flex items-center gap-2 text-left whitespace-nowrap transition-colors cursor-pointer ${
                   activeTab === 'welcome'
@@ -982,20 +970,8 @@ export const AdminCMSModal: React.FC = () => {
               </button>
 
               <button
-                onClick={() => setActiveTab('backup')}
-                className={`px-3 py-2 rounded-xl font-bold flex items-center gap-2 text-left whitespace-nowrap transition-colors cursor-pointer mt-auto border-t border-slate-200 pt-3 ${
-                  activeTab === 'backup'
-                    ? 'bg-blue-900 text-white shadow-2xs'
-                    : 'text-slate-700 hover:bg-slate-200'
-                }`}
-              >
-                <Download className="w-4 h-4 shrink-0" />
-                <span>Backup & Reset</span>
-              </button>
-
-              <button
                 onClick={() => setActiveTab('admins')}
-                className={`px-3 py-2 rounded-xl font-bold flex items-center gap-2 text-left whitespace-nowrap transition-colors cursor-pointer border-t border-slate-200 pt-3 ${
+                className={`px-3 py-2 rounded-xl font-bold flex items-center gap-2 text-left whitespace-nowrap transition-colors cursor-pointer mt-auto border-t border-slate-200 pt-3 ${
                   activeTab === 'admins'
                     ? 'bg-blue-900 text-white shadow-2xs'
                     : 'text-slate-700 hover:bg-slate-200'
@@ -2978,54 +2954,6 @@ export const AdminCMSModal: React.FC = () => {
                 </div>
               )}
 
-              {/* TAB 9: Blog Articles Jump */}
-              {activeTab === 'blogs' && (
-                <div className="space-y-5 text-xs">
-                  <div className="flex items-center justify-between border-b border-slate-200 pb-3">
-                    <div>
-                      <h4 className="text-base font-bold text-slate-900 font-heading">
-                        Published Blog & Journal Articles ({blogs.length})
-                      </h4>
-                      <p className="text-slate-500 text-[11px]">
-                        Manage student research notes, faculty columns, and Olympiad guides.
-                      </p>
-                    </div>
-                    <button
-                      onClick={() => {
-                        setIsAdminOpen(false);
-                        const el = document.getElementById('blog');
-                        if (el) el.scrollIntoView({ behavior: 'smooth' });
-                      }}
-                      className="px-3.5 py-2 bg-blue-900 text-white font-bold rounded-xl flex items-center gap-1.5 cursor-pointer"
-                    >
-                      <ExternalLink className="w-3.5 h-3.5 text-amber-400" />
-                      <span>Open Blog Section</span>
-                    </button>
-                  </div>
-
-                  <div className="space-y-2">
-                    {blogs.map((b) => (
-                      <div key={b.id} className="p-3 bg-white border border-slate-200 rounded-xl flex items-center justify-between gap-3">
-                        <div>
-                          <span className="font-bold text-slate-900 block">{b.title}</span>
-                          <span className="text-slate-500 text-[11px]">By {b.authorName} • {b.date} • {b.category}</span>
-                        </div>
-
-                        <button
-                          onClick={() => {
-                            deleteBlog(b.id);
-                            showStatus('Article deleted.');
-                          }}
-                          className="p-1.5 text-slate-400 hover:text-red-700 hover:bg-red-50 rounded-lg cursor-pointer"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
                {/* TAB: Stats Section */}
                {activeTab === 'stats' && (
                 <div className="space-y-5 text-xs">
@@ -3215,89 +3143,7 @@ export const AdminCMSModal: React.FC = () => {
                 </div>
               )}
 
-              {/* TAB 10: Backup & Reset */}
-              {activeTab === 'backup' && (
-                <div className="space-y-6 text-xs">
-                  <div className="border-b border-slate-200 pb-3">
-                    <h4 className="text-base font-bold text-slate-900 font-heading">
-                      Backup, Export & Factory Reset
-                    </h4>
-                    <p className="text-slate-500 text-[11px]">
-                      Download all current website modifications into a portable JSON backup file or restore defaults.
-                    </p>
-                  </div>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    
-                    {/* Export Card */}
-                    <div className="p-5 bg-blue-50/60 border border-blue-200 rounded-2xl space-y-3">
-                      <div className="flex items-center gap-2">
-                        <Download className="w-5 h-5 text-blue-900" />
-                        <h5 className="font-bold text-blue-950 text-sm">Download Backup (.JSON)</h5>
-                      </div>
-                      <p className="text-slate-600 text-[11px]">
-                        Save a complete copy of all your faculty profiles, notices, circulars, syllabi, blog posts, and contact information.
-                      </p>
-                      <button
-                        onClick={handleExportJson}
-                        className="px-4 py-2 bg-blue-900 hover:bg-blue-950 text-white font-bold rounded-xl flex items-center gap-1.5 cursor-pointer shadow-xs"
-                      >
-                        <Download className="w-3.5 h-3.5 text-amber-400" />
-                        <span>Export All Data Now</span>
-                      </button>
-                    </div>
-
-                    {/* Import Card */}
-                    <div className="p-5 bg-amber-50/60 border border-amber-200 rounded-2xl space-y-3">
-                      <div className="flex items-center gap-2">
-                        <Upload className="w-5 h-5 text-amber-900" />
-                        <h5 className="font-bold text-amber-950 text-sm">Restore from File</h5>
-                      </div>
-                      <p className="text-slate-600 text-[11px]">
-                        Upload a previously saved JSON backup file to overwrite and restore website data.
-                      </p>
-                      <button
-                        onClick={() => importFileRef.current?.click()}
-                        className="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold rounded-xl flex items-center gap-1.5 cursor-pointer shadow-xs"
-                      >
-                        <Upload className="w-3.5 h-3.5" />
-                        <span>Select Backup File</span>
-                      </button>
-                      <input
-                        ref={importFileRef}
-                        type="file"
-                        accept=".json,application/json"
-                        onChange={handleImportJson}
-                        className="hidden"
-                      />
-                    </div>
-
-                  </div>
-
-                  {/* Reset to Default */}
-                  <div className="p-5 bg-red-50/50 border border-red-200 rounded-2xl space-y-3">
-                    <div className="flex items-center gap-2">
-                      <RefreshCw className="w-5 h-5 text-red-700" />
-                      <h5 className="font-bold text-red-950 text-sm">Reset to Official Department Defaults</h5>
-                    </div>
-                    <p className="text-slate-600 text-[11px]">
-                      Clear all custom local changes and reload the default Dudhnoi College mathematics curriculum, faculty list, and accreditation settings.
-                    </p>
-                    <button
-                      onClick={() => {
-                        resetAllToDefaults();
-                        setGeneralForm(departmentInfo);
-                        showStatus('Reset to default department dataset completed.');
-                      }}
-                      className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white font-bold rounded-xl flex items-center gap-1.5 cursor-pointer"
-                    >
-                      <RefreshCw className="w-3.5 h-3.5" />
-                      <span>Reset All Data to Defaults</span>
-                    </button>
-                  </div>
-
-                </div>
-              )}
 
               {/* TAB 11: Admin Accounts Management */}
               {activeTab === 'admins' && (

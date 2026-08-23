@@ -16,7 +16,7 @@ import {
 import { useDepartmentData } from '../context/DataContext';
 
 export const AboutSection: React.FC = () => {
-  const { departmentInfo: DEPARTMENT_INFO } = useDepartmentData();
+  const { departmentInfo: DEPARTMENT_INFO, faculty } = useDepartmentData();
   const [modalOpen, setModalOpen] = useState(false);
 
   return (
@@ -88,7 +88,14 @@ export const AboutSection: React.FC = () => {
               <Quote className="w-8 h-8 text-blue-200 absolute top-4 right-4" />
               <div className="flex items-center gap-3 mb-3">
                 <img
-                  src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=200"
+                  src={
+                    faculty.find(
+                      (f) =>
+                        f.role?.toLowerCase().includes('hod') ||
+                        f.name.toLowerCase().includes('hod') ||
+                        f.name === DEPARTMENT_INFO.hodName
+                    )?.image || "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=200"
+                  }
                   alt={`${DEPARTMENT_INFO.hodName} - HOD`}
                   className="w-12 h-12 rounded-full object-cover border-2 border-blue-900"
                   referrerPolicy="no-referrer"

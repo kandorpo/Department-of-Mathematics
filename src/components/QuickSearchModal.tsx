@@ -94,7 +94,7 @@ export const QuickSearchModal: React.FC<QuickSearchModalProps> = ({
     ).map((b) => ({ type: 'Article', title: b.title, desc: `By ${b.authorName} • ${b.category}`, section: 'blog' }));
 
     return [...faculty, ...courses, ...blogs, ...notices, ...events, ...research];
-  }, [query]);
+  }, [query, FACULTY_DATA, COURSES_DATA, NOTICES_DATA, EVENTS_DATA, RESEARCH_AREAS, DEFAULT_BLOG_POSTS]);
 
   if (!isOpen) return null;
 
