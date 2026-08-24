@@ -275,11 +275,7 @@ export const AdminCMSModal: React.FC = () => {
     }
   };
 
-  const handleQuickLogin = () => {
-    loginAdmin('department_admin', 'dudhnoi1972');
-    setGeneralForm(departmentInfo);
-    showStatus('Quick access granted as Department Coordinator.');
-  };
+
 
   const handleAdminRegistration = (e: React.FormEvent) => {
     e.preventDefault();
@@ -394,19 +390,17 @@ export const AdminCMSModal: React.FC = () => {
   const handleDeleteAdmin = (id: string) => {
     const isSuperAdmin = currentAdmin?.role === 'Super Admin' || currentAdmin?.username?.toLowerCase() === 'kandorpo';
     if (!isSuperAdmin) {
-      alert('Unauthorized access: Only a Super Admin can delete administrator accounts.');
+      showStatus('Unauthorized access: Only a Super Admin can delete administrator accounts.');
       return;
     }
     if (currentAdmin && currentAdmin.id === id) {
-      alert('Security violation: You cannot delete your own logged-in administrator profile.');
+      showStatus('Security violation: You cannot delete your own logged-in administrator profile.');
       return;
     }
     const target = (admins || []).find(a => a.id === id);
     if (!target) return;
-    if (confirm(`Are you sure you want to permanently delete the administrator profile for "${target.fullName}"?`)) {
-      deleteAdminAccount(id);
-      showStatus(`Administrator account "${target.fullName}" removed.`);
-    }
+    deleteAdminAccount(id);
+    showStatus(`Administrator account "${target.fullName}" removed.`);
   };
 
   const handleSaveGeneralInfo = (e: React.FormEvent) => {
@@ -475,13 +469,18 @@ export const AdminCMSModal: React.FC = () => {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-slate-950/85 backdrop-blur-xs animate-in fade-in duration-150">
+    <div 
+      className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-slate-950/85 backdrop-blur-xs animate-in fade-in duration-150"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="admin-cms-title"
+    >
       <div className="bg-white rounded-2xl max-w-5xl w-full max-h-[94vh] flex flex-col shadow-2xl border border-slate-200 overflow-hidden">
         
         {/* Top Header Bar */}
         <div className="flex items-center justify-between px-5 py-4 bg-slate-900 text-white border-b border-slate-800 shrink-0">
           <div className="flex items-center gap-3">
-            <div className="p-2 bg-amber-400 text-slate-950 rounded-xl shadow-xs">
+            <div className="p-2 bg-amber-400 text-slate-950 rounded-xl shadow-xs" aria-hidden="true">
               <Sliders className="w-5 h-5" />
             </div>
             <div>
@@ -496,7 +495,7 @@ export const AdminCMSModal: React.FC = () => {
                   </span>
                 )}
               </div>
-              <h3 className="text-base sm:text-lg font-bold font-heading text-white">
+              <h3 id="admin-cms-title" className="text-base sm:text-lg font-bold font-heading text-white">
                 Website Content Management System & Editor
               </h3>
             </div>
@@ -628,21 +627,7 @@ export const AdminCMSModal: React.FC = () => {
                 </p>
               </div>
 
-              {/* Quick Demo Access */}
-              <div className="pt-4 border-t border-slate-200 w-full text-center space-y-2">
-                <span className="text-[10px] text-slate-400 block font-medium">
-                  Demonstration Credentials:<br />
-                  User: <span className="font-mono text-slate-600 select-all font-bold">kandorpo</span> | Pass: <span className="font-mono text-slate-600 select-all font-bold">Daisuke34</span> (Super Admin)<br />
-                  User: <span className="font-mono text-slate-600 select-all font-bold">department_admin</span> | Pass: <span className="font-mono text-slate-600 select-all font-bold">dudhnoi1972</span>
-                </span>
-                <button
-                  type="button"
-                  onClick={handleQuickLogin}
-                  className="text-xs font-bold text-blue-900 hover:text-blue-700 hover:underline cursor-pointer flex items-center justify-center gap-1.5 mx-auto"
-                >
-                  <span>⚡ 1-Click Quick Access</span>
-                </button>
-              </div>
+
             </div>
           ) : (
             /* Register Screen */
@@ -3358,10 +3343,8 @@ export const AdminCMSModal: React.FC = () => {
                                         <div className="flex items-center justify-end gap-1.5">
                                           <button
                                             onClick={() => {
-                                              if (confirm(`Approve administrative authorization request for "${req.fullName}" as HOD / Admin?`)) {
-                                                approveAdminRegistrationRequest(req.id);
-                                                showStatus(`Administrator account "${req.fullName}" has been approved & activated.`);
-                                              }
+                                              approveAdminRegistrationRequest(req.id);
+                                              showStatus(`Administrator account "${req.fullName}" has been approved & activated.`);
                                             }}
                                             className="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-lg text-[10px] cursor-pointer shadow-2xs"
                                           >
@@ -3369,10 +3352,8 @@ export const AdminCMSModal: React.FC = () => {
                                           </button>
                                           <button
                                             onClick={() => {
-                                              if (confirm(`Are you sure you want to decline this registration request for "${req.fullName}"?`)) {
-                                                rejectAdminRegistrationRequest(req.id);
-                                                showStatus(`Registration request for "${req.fullName}" declined.`);
-                                              }
+                                              rejectAdminRegistrationRequest(req.id);
+                                              showStatus(`Registration request for "${req.fullName}" declined.`);
                                             }}
                                             className="px-2 py-1 border border-slate-300 hover:bg-red-50 hover:text-red-700 hover:border-red-200 text-slate-600 font-bold rounded-lg text-[10px] cursor-pointer"
                                           >

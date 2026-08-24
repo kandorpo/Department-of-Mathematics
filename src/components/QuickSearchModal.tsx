@@ -31,6 +31,12 @@ export const QuickSearchModal: React.FC<QuickSearchModalProps> = ({
     blogs: DEFAULT_BLOG_POSTS
   } = useDepartmentData();
   const [query, setQuery] = useState('');
+  const [activeIndex, setActiveIndex] = useState(-1);
+
+  // Reset activeIndex whenever query changes
+  useEffect(() => {
+    setActiveIndex(-1);
+  }, [query]);
 
   // Keyboard shortcut Ctrl+K or Cmd+K
   useEffect(() => {
@@ -103,24 +109,61 @@ export const QuickSearchModal: React.FC<QuickSearchModalProps> = ({
     onClose();
   };
 
+  const handleInputKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (searchResults && searchResults.length > 0) {
+      if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        setActiveIndex((prev) => (prev + 1) % searchResults.length);
+      } else if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        setActiveIndex((prev) => (prev - 1 + searchResults.length) % searchResults.length);
+      } else if (e.key === 'Enter') {
+        e.preventDefault();
+        const selected = activeIndex >= 0 && activeIndex < searchResults.length 
+          ? searchResults[activeIndex] 
+          : searchResults[0];
+        if (selected) {
+          handleSelect(selected.section);
+        }
+      }
+    }
+  };
+
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center pt-16 sm:pt-24 px-4 bg-slate-950/75 backdrop-blur-xs animate-in fade-in duration-150">
+    <div 
+      className="fixed inset-0 z-50 flex items-start justify-center pt-16 sm:pt-24 px-4 bg-slate-950/75 backdrop-blur-xs animate-in fade-in duration-150"
+      role="dialog"
+      aria-modal="true"
+      aria-label="Department Search Dialog"
+    >
       <div className="bg-white rounded-2xl max-w-2xl w-full shadow-2xl border border-slate-200 overflow-hidden space-y-3 p-4">
         
+        {/* Screen Reader Announcements */}
+        <div className="sr-only" aria-live="polite">
+          {searchResults ? `${searchResults.length} results found for ${query}` : ''}
+        </div>
+
         {/* Search Input Bar */}
         <div className="flex items-center gap-3 px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl">
           <Search className="w-5 h-5 text-slate-400 shrink-0" />
           <input
             type="text"
             autoFocus
+            role="combobox"
+            aria-expanded={searchResults !== null && searchResults.length > 0}
+            aria-autocomplete="list"
+            aria-controls="search-results-listbox"
+            aria-activedescendant={activeIndex >= 0 ? `search-option-${activeIndex}` : undefined}
             placeholder="Search faculty, courses, research, notices, syllabus..."
             value={query}
             onChange={(e) => setQuery(e.target.value)}
+            onKeyDown={handleInputKeyDown}
             className="w-full bg-transparent text-sm text-slate-800 placeholder-slate-400 focus:outline-none"
           />
           {query && (
             <button
               onClick={() => setQuery('')}
+              aria-label="Clear search query"
               className="text-xs text-slate-400 hover:text-slate-600 px-1.5"
             >
               Clear
@@ -136,16 +179,22 @@ export const QuickSearchModal: React.FC<QuickSearchModalProps> = ({
         </div>
 
         {/* Search Results / Suggestions */}
-        <div className="max-h-[60vh] overflow-y-auto space-y-1.5 p-1">
+        <div 
+          id="search-results-listbox"
+          role="listbox"
+          aria-label="Search suggestions"
+          className="max-h-[60vh] overflow-y-auto space-y-1.5 p-1"
+        >
           {searchResults === null ? (
             <div className="p-6 text-center space-y-3">
-              <Sparkles className="w-8 h-8 text-amber-500 mx-auto" />
+              <Sparkles className="w-8 h-8 text-amber-500 mx-auto" aria-hidden="true" />
               <div className="text-xs font-semibold text-slate-700">Quick Academic Search</div>
               <div className="flex flex-wrap justify-center gap-2 text-xs text-slate-600">
                 {['Real Analysis', 'Dr. Mukul Kalita', 'Olympiad', 'NEP Syllabus', 'Fluid Dynamics', 'Exam Routine'].map((s) => (
                   <button
                     key={s}
                     onClick={() => setQuery(s)}
+                    aria-label={`Search for ${s}`}
                     className="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-blue-50 hover:text-blue-900 text-slate-700 text-[11px] font-medium transition-colors cursor-pointer"
                   >
                     {s}
@@ -154,33 +203,43 @@ export const QuickSearchModal: React.FC<QuickSearchModalProps> = ({
               </div>
             </div>
           ) : searchResults.length === 0 ? (
-            <div className="p-8 text-center text-xs text-slate-500">
+            <div className="p-8 text-center text-xs text-slate-500" role="status">
               No results found for "<span className="font-semibold text-slate-700">{query}</span>"
             </div>
           ) : (
-            searchResults.map((item, idx) => (
-              <button
-                key={idx}
-                onClick={() => handleSelect(item.section)}
-                className="w-full p-3 rounded-xl hover:bg-blue-50 text-left transition-colors flex items-center justify-between group cursor-pointer border border-transparent hover:border-blue-200"
-              >
-                <div className="space-y-0.5">
-                  <div className="flex items-center gap-2">
-                    <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-slate-100 group-hover:bg-blue-100 text-slate-700 group-hover:text-blue-900">
-                      {item.type}
-                    </span>
-                    <span className="text-xs font-bold text-slate-900 group-hover:text-blue-950">
-                      {item.title}
-                    </span>
+            searchResults.map((item, idx) => {
+              const isSelected = idx === activeIndex;
+              return (
+                <button
+                  key={idx}
+                  id={`search-option-${idx}`}
+                  role="option"
+                  aria-selected={isSelected}
+                  onClick={() => handleSelect(item.section)}
+                  className={`w-full p-3 rounded-xl text-left transition-colors flex items-center justify-between group cursor-pointer border ${
+                    isSelected 
+                      ? 'bg-blue-50 border-blue-300 text-blue-900' 
+                      : 'border-transparent hover:bg-blue-50/70 hover:border-blue-200'
+                  }`}
+                >
+                  <div className="space-y-0.5">
+                    <div className="flex items-center gap-2">
+                      <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-slate-100 group-hover:bg-blue-100 text-slate-700 group-hover:text-blue-900">
+                        {item.type}
+                      </span>
+                      <span className="text-xs font-bold text-slate-900 group-hover:text-blue-950">
+                        {item.title}
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-slate-500 group-hover:text-slate-700 line-clamp-1">
+                      {item.desc}
+                    </p>
                   </div>
-                  <p className="text-[11px] text-slate-500 group-hover:text-slate-700 line-clamp-1">
-                    {item.desc}
-                  </p>
-                </div>
 
-                <ArrowRight className="w-4 h-4 text-slate-400 group-hover:text-blue-900 group-hover:translate-x-1 transition-all shrink-0 ml-2" />
-              </button>
-            ))
+                  <ArrowRight className="w-4 h-4 text-slate-400 group-hover:text-blue-900 group-hover:translate-x-1 transition-all shrink-0 ml-2" />
+                </button>
+              );
+            })
           )}
         </div>
 

@@ -555,6 +555,11 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }
 
     // 2. Save to Google Cloud Firestore (triggers real-time update on all client screens)
+    if (isDatabaseQuotaExceeded) {
+      console.log('Skipping Firestore sync: database is offline or quota has been exceeded. Changes are saved to local sandbox.');
+      return;
+    }
+
     try {
       setDoc(DOC_REF, data, { merge: true }).catch((err: any) => {
         console.error('Failed to sync changes to Google Cloud Firestore:', err);

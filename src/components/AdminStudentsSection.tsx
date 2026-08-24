@@ -357,15 +357,9 @@ export const AdminStudentsSection: React.FC<AdminStudentsSectionProps> = ({
   // Bulk Delete
   const handleBulkDelete = () => {
     if (selectedIds.length === 0) return;
-    if (
-      confirm(
-        `Are you sure you want to delete ${selectedIds.length} student record(s) from the official department database?`
-      )
-    ) {
-      selectedIds.forEach((id) => onDeleteStudent(id));
-      showStatus(`Removed ${selectedIds.length} student(s) from roster.`);
-      setSelectedIds([]);
-    }
+    selectedIds.forEach((id) => onDeleteStudent(id));
+    showStatus(`Removed ${selectedIds.length} student(s) from roster.`);
+    setSelectedIds([]);
   };
 
   // Bulk Update
@@ -1010,6 +1004,7 @@ export const AdminStudentsSection: React.FC<AdminStudentsSectionProps> = ({
               <button
                 onClick={handleBulkDelete}
                 className="px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white rounded-lg font-bold flex items-center gap-1.5 shadow-2xs cursor-pointer"
+                id="btn-bulk-delete"
               >
                 <Trash2 className="w-3.5 h-3.5" />
                 <span>Delete Selected</span>
@@ -1192,13 +1187,12 @@ export const AdminStudentsSection: React.FC<AdminStudentsSectionProps> = ({
                                 </button>
                                 <button
                                   onClick={() => {
-                                    if (confirm(`Remove "${stu.fullName}" (Roll: ${stu.rollNo}) from the official department roster? They will no longer be able to register in the Student Portal.`)) {
-                                      onDeleteStudent(stu.id);
-                                      showStatus(`Student "${stu.fullName}" removed from roster.`);
-                                    }
+                                    onDeleteStudent(stu.id);
+                                    showStatus(`Student "${stu.fullName}" has been successfully removed.`);
                                   }}
-                                  className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-md transition-colors cursor-pointer"
+                                  className="p-1 text-slate-400 hover:text-red-700 hover:bg-red-50 rounded-md transition-colors cursor-pointer"
                                   title="Delete student record"
+                                  id={`btn-delete-${stu.id}`}
                                 >
                                   <Trash2 className="w-3.5 h-3.5" />
                                 </button>
@@ -1490,16 +1484,13 @@ export const AdminStudentsSection: React.FC<AdminStudentsSectionProps> = ({
                               <Edit3 className="w-3.5 h-3.5" />
                             </button>
                             <button
-                              onClick={(e) => {
-                                  e.stopPropagation();
-                                  if (window.confirm(`Are you sure you want to permanently delete the student profile for "${stu.fullName}"?`)) {
-                                    console.log('Delete button clicked for student ID:', stu.id);
-                                    onDeleteStudent(stu.id);
-                                    showStatus(`Student "${stu.fullName}" removed.`);
-                                  }
+                              onClick={() => {
+                                onDeleteStudent(stu.id);
+                                showStatus(`Student "${stu.fullName}" has been successfully removed.`);
                               }}
-                              className="p-1.5 text-slate-500 hover:text-red-600 hover:bg-red-50 rounded-md transition-colors cursor-pointer pointer-events-auto"
-                              title="Delete"
+                              className="p-1.5 text-slate-400 hover:text-red-700 hover:bg-red-50 rounded-md transition-colors cursor-pointer"
+                              title="Delete student record"
+                              id={`btn-table-delete-${stu.id}`}
                             >
                               <Trash2 className="w-3.5 h-3.5" />
                             </button>

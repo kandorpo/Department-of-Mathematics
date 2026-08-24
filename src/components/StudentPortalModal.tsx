@@ -71,7 +71,6 @@ export const StudentPortalModal: React.FC<StudentPortalModalProps> = ({ isOpen, 
 
   // OTP Countdown and background delivery states
   const [forgotCountdown, setForgotCountdown] = useState(0);
-  const [registerCountdown, setRegisterCountdown] = useState(0);
   const [activeNotifications, setActiveNotifications] = useState<{ id: string; sender: string; text: string }[]>([]);
 
   const triggerNotification = (sender: string, text: string) => {
@@ -104,13 +103,6 @@ export const StudentPortalModal: React.FC<StudentPortalModalProps> = ({ isOpen, 
       return () => clearTimeout(timer);
     }
   }, [forgotCountdown]);
-
-  useEffect(() => {
-    if (registerCountdown > 0) {
-      const timer = setTimeout(() => setRegisterCountdown(registerCountdown - 1), 1000);
-      return () => clearTimeout(timer);
-    }
-  }, [registerCountdown]);
 
   const {
     faculty,
@@ -164,11 +156,6 @@ export const StudentPortalModal: React.FC<StudentPortalModalProps> = ({ isOpen, 
   const [regSuccess, setRegSuccess] = useState(false);
   const [regError, setRegError] = useState('');
   const [avatarError, setAvatarError] = useState('');
-  const [otpSent, setOtpSent] = useState(false);
-  const [otpVerified, setOtpVerified] = useState(false);
-  const [otpInput, setOtpInput] = useState('');
-  const [generatedOtp, setGeneratedOtp] = useState('');
-  const [otpMessage, setOtpMessage] = useState('');
 
 
   // Rejection Alert Modal state for non-department students
@@ -251,12 +238,7 @@ export const StudentPortalModal: React.FC<StudentPortalModalProps> = ({ isOpen, 
     }
   };
 
-  // Demo Login Quick-Fill
-  const handleQuickDemoLogin = (demoStudent: StudentProfile) => {
-    setCurrentStudent(demoStudent);
-    localStorage.setItem(STORAGE_KEY_STUDENT, JSON.stringify(demoStudent));
-    setLoginError('');
-  };
+
 
   // Forgot Password Flow Handlers
   const handleForgotSendOtp = () => {
@@ -369,48 +351,12 @@ export const StudentPortalModal: React.FC<StudentPortalModalProps> = ({ isOpen, 
   };
 
   // Handle Registration with Mandatory Department Roster Verification
-  const handleSendOtp = () => {
-    if (!regPhone.trim()) {
-      setRegError('Please enter a valid mobile number to send OTP.');
-      return;
-    }
-    setRegError('');
-    const dummyOtp = Math.floor(100000 + Math.random() * 900000).toString();
-    setGeneratedOtp(dummyOtp);
-    setOtpSent(true);
-    setRegisterCountdown(60);
-    setOtpMessage(`Secure verification OTP has been automatically sent to your registered WhatsApp number (+91 ${regPhone.trim()}).`);
-
-    // Simulate receiving a background WhatsApp notification automatically on the current screen
-    setTimeout(() => {
-      triggerNotification(
-        "WhatsApp (Dudhnoi Math Portal)",
-        `Verification Code: ${dummyOtp}. Use this OTP to verify your mobile number and register.`
-      );
-    }, 1500);
-  };
-
-  const handleVerifyOtp = () => {
-    if (otpInput === generatedOtp) {
-      setOtpVerified(true);
-      setRegError('');
-      setOtpMessage('Mobile number verified successfully!');
-    } else {
-      setRegError('Invalid OTP. Please try again.');
-    }
-  };
-
   const handleRegister = (e: React.FormEvent) => {
     e.preventDefault();
     setRegError('');
 
     if (!regFullName.trim() || !regRollNo.trim() || !regEmail.trim() || !regPassword) {
       setRegError('Please fill in all mandatory fields, including password.');
-      return;
-    }
-
-    if (!otpVerified) {
-      setRegError('Please verify your mobile number with OTP before registering.');
       return;
     }
 
@@ -544,13 +490,18 @@ export const StudentPortalModal: React.FC<StudentPortalModalProps> = ({ isOpen, 
 
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-950/80 backdrop-blur-xs animate-in fade-in duration-200">
+    <div 
+      className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-950/80 backdrop-blur-xs animate-in fade-in duration-200"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="student-portal-title"
+    >
       <div className="bg-white rounded-2xl max-w-4xl w-full max-h-[92vh] overflow-y-auto shadow-2xl border border-slate-200 p-5 sm:p-7 space-y-5">
         
         {/* Header Bar */}
         <div className="flex items-start justify-between border-b border-slate-200 pb-4">
           <div className="flex items-center gap-3">
-            <div className="p-2.5 sm:p-3 bg-blue-900 text-amber-400 rounded-xl shadow-xs">
+            <div className="p-2.5 sm:p-3 bg-blue-900 text-amber-400 rounded-xl shadow-xs" aria-hidden="true">
               <GraduationCap className="w-6 h-6" />
             </div>
             <div>
@@ -565,7 +516,7 @@ export const StudentPortalModal: React.FC<StudentPortalModalProps> = ({ isOpen, 
                   </span>
                 )}
               </div>
-              <h3 className="text-lg sm:text-xl font-bold text-slate-900 font-heading mt-0.5">
+              <h3 id="student-portal-title" className="text-lg sm:text-xl font-bold text-slate-900 font-heading mt-0.5">
                 Department of Mathematics Portal
               </h3>
             </div>
@@ -574,16 +525,18 @@ export const StudentPortalModal: React.FC<StudentPortalModalProps> = ({ isOpen, 
           <button
             onClick={onClose}
             className="p-2 text-slate-400 hover:text-slate-700 rounded-lg hover:bg-slate-100 transition-colors cursor-pointer"
-            aria-label="Close portal"
+            aria-label="Close portal dialog"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
         {/* Tab Navigation */}
-        <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 border-b border-slate-100 pb-2.5">
+        <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 border-b border-slate-100 pb-2.5" role="tablist" aria-label="Student portal navigation">
           <button
             onClick={() => setActiveTab('profile')}
+            role="tab"
+            aria-selected={activeTab === 'profile'}
             className={`px-3.5 py-2 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
               activeTab === 'profile'
                 ? 'bg-blue-900 text-white shadow-xs'
@@ -598,6 +551,8 @@ export const StudentPortalModal: React.FC<StudentPortalModalProps> = ({ isOpen, 
             <>
               <button
                 onClick={() => setActiveTab('downloads')}
+                role="tab"
+                aria-selected={activeTab === 'downloads'}
                 className={`px-3.5 py-2 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
                   activeTab === 'downloads'
                     ? 'bg-blue-900 text-white shadow-xs'
@@ -610,6 +565,8 @@ export const StudentPortalModal: React.FC<StudentPortalModalProps> = ({ isOpen, 
 
               <button
                 onClick={() => setActiveTab('routine')}
+                role="tab"
+                aria-selected={activeTab === 'routine'}
                 className={`px-3.5 py-2 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
                   activeTab === 'routine'
                     ? 'bg-blue-900 text-white shadow-xs'
@@ -1033,28 +990,7 @@ export const StudentPortalModal: React.FC<StudentPortalModalProps> = ({ isOpen, 
                       </button>
                     </form>
 
-                    {/* Quick Demo Login Preset Buttons */}
-                    <div className="pt-4 border-t border-slate-200 space-y-2">
-                      <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block text-center">
-                        Instant Quick Login (Demo Profiles)
-                      </span>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                        {registeredStudents.slice(0, 2).map((stu) => (
-                          <button
-                            key={stu.id}
-                            type="button"
-                            onClick={() => handleQuickDemoLogin(stu)}
-                            className="p-2.5 rounded-lg bg-slate-50 hover:bg-blue-50 border border-slate-200 hover:border-blue-300 text-left transition-all flex items-center gap-2.5 cursor-pointer"
-                          >
-                            <img src={stu.avatar} alt={stu.fullName} className="w-8 h-8 rounded-full object-cover border border-slate-300" />
-                            <div className="overflow-hidden">
-                              <p className="font-bold text-[11px] text-slate-800 truncate">{stu.fullName}</p>
-                              <p className="text-[10px] text-slate-500 font-mono">{stu.rollNo}</p>
-                            </div>
-                          </button>
-                        ))}
-                      </div>
-                    </div>
+
                   </div>
                 )}
 
@@ -1374,80 +1310,14 @@ export const StudentPortalModal: React.FC<StudentPortalModalProps> = ({ isOpen, 
 
                         <div>
                           <label className="block font-semibold text-slate-700 mb-1">Mobile / WhatsApp Number *</label>
-                          <div className="flex gap-2">
-                            <input
-                              type="tel"
-                              placeholder="+91 94350 XXXXX"
-                              value={regPhone}
-                              onChange={(e) => setRegPhone(e.target.value)}
-                              disabled={otpVerified}
-                              className="flex-1 px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-900 focus:bg-white disabled:opacity-70"
-                            />
-                            {!otpVerified && (
-                              <button
-                                type="button"
-                                disabled={registerCountdown > 0}
-                                onClick={handleSendOtp}
-                                className={`px-3 py-2 font-bold rounded-lg text-xs whitespace-nowrap transition-all ${
-                                  registerCountdown > 0 
-                                    ? "bg-slate-100 text-slate-400 cursor-not-allowed border border-slate-200" 
-                                    : "bg-slate-200 hover:bg-slate-300 text-slate-800"
-                                }`}
-                              >
-                                {otpSent 
-                                  ? registerCountdown > 0 
-                                    ? `Resend in ${registerCountdown}s` 
-                                    : "Resend" 
-                                  : "Send OTP"}
-                              </button>
-                            )}
-                            {otpVerified && (
-                              <div className="px-3 py-2 bg-emerald-100 text-emerald-800 font-bold rounded-lg text-xs flex items-center">
-                                <CheckCircle2 className="w-4 h-4 mr-1" /> Verified
-                              </div>
-                            )}
-                          </div>
-                          {otpMessage && (
-                            <div className={`mt-1.5 p-2 rounded-md text-[11px] font-medium leading-relaxed ${
-                              otpVerified ? 'bg-emerald-50 text-emerald-800 border border-emerald-200 animate-pulse' : 'bg-blue-50 text-blue-800 border border-blue-200'
-                            }`}>
-                              {otpMessage}
-                            </div>
-                          )}
-                          {otpSent && !otpVerified && (
-                            <div className="mt-2 space-y-2 animate-in fade-in slide-in-from-top-2">
-                              {registerCountdown > 0 && (
-                                <div className="bg-slate-50 border border-slate-200 rounded-lg p-2.5 space-y-1.5">
-                                  <div className="flex justify-between items-center text-[10px]">
-                                    <span className="text-slate-500 font-medium">OTP Code validity timer</span>
-                                    <span className="font-bold text-blue-900 font-mono">{registerCountdown}s</span>
-                                  </div>
-                                  <div className="w-full h-1.5 bg-slate-200 rounded-full overflow-hidden">
-                                    <div 
-                                      className="h-full bg-blue-900 transition-all duration-1000 ease-linear rounded-full"
-                                      style={{ width: `${(registerCountdown / 60) * 100}%` }}
-                                    />
-                                  </div>
-                                </div>
-                              )}
-                              <div className="flex gap-2">
-                                <input
-                                  type="text"
-                                  placeholder="Enter OTP"
-                                  value={otpInput}
-                                  onChange={(e) => setOtpInput(e.target.value)}
-                                  className="flex-1 px-3 py-2 bg-blue-50 border border-blue-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-900 focus:bg-white"
-                                />
-                                <button
-                                  type="button"
-                                  onClick={handleVerifyOtp}
-                                  className="px-3 py-2 bg-blue-900 hover:bg-blue-950 text-white font-bold rounded-lg text-xs whitespace-nowrap cursor-pointer"
-                                >
-                                  Verify
-                                </button>
-                              </div>
-                            </div>
-                          )}
+                          <input
+                            type="tel"
+                            required
+                            placeholder="+91 94350 XXXXX"
+                            value={regPhone}
+                            onChange={(e) => setRegPhone(e.target.value)}
+                            className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-900 focus:bg-white"
+                          />
                         </div>
 
                         <div>
@@ -1464,33 +1334,31 @@ export const StudentPortalModal: React.FC<StudentPortalModalProps> = ({ isOpen, 
                         </div>
                       </div>
 
-                      {/* Password Creation (Locked behind OTP) */}
-                      {otpVerified && (
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-4 rounded-xl bg-blue-50/50 border border-blue-100 animate-in fade-in slide-in-from-top-4">
-                          <div>
-                            <label className="block font-semibold text-slate-700 mb-1">Create Password *</label>
-                            <input
-                              type="password"
-                              required
-                              placeholder="Create a strong password"
-                              value={regPassword}
-                              onChange={(e) => setRegPassword(e.target.value)}
-                              className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-900"
-                            />
-                          </div>
-                          <div>
-                            <label className="block font-semibold text-slate-700 mb-1">Confirm Password *</label>
-                            <input
-                              type="password"
-                              required
-                              placeholder="Re-enter password"
-                              value={regConfirmPassword}
-                              onChange={(e) => setRegConfirmPassword(e.target.value)}
-                              className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-900"
-                            />
-                          </div>
+                      {/* Password Creation */}
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-4 rounded-xl bg-blue-50/50 border border-blue-100 animate-in fade-in slide-in-from-top-4">
+                        <div>
+                          <label className="block font-semibold text-slate-700 mb-1">Create Password *</label>
+                          <input
+                            type="password"
+                            required
+                            placeholder="Create a strong password"
+                            value={regPassword}
+                            onChange={(e) => setRegPassword(e.target.value)}
+                            className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-900"
+                          />
                         </div>
-                      )}
+                        <div>
+                          <label className="block font-semibold text-slate-700 mb-1">Confirm Password *</label>
+                          <input
+                            type="password"
+                            required
+                            placeholder="Re-enter password"
+                            value={regConfirmPassword}
+                            onChange={(e) => setRegConfirmPassword(e.target.value)}
+                            className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-900"
+                          />
+                        </div>
+                      </div>
 
                       {/* Semester & Batch */}
                       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">

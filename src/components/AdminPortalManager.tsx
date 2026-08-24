@@ -634,13 +634,11 @@ export const AdminPortalManager: React.FC = () => {
                             </button>
                             <button
                               onClick={() => {
-                                if (window.confirm(`Are you sure you want to permanently delete the student profile and portal access for "${stu.fullName}"?`)) {
-                                  deleteRegisteredStudentProfile(stu.id);
-                                  showStatus(`Deleted student account ${stu.fullName}.`);
-                                }
+                                deleteRegisteredStudentProfile(stu.id);
+                                showStatus(`Student account for "${stu.fullName}" has been deleted.`);
                               }}
-                              className="p-1.5 text-red-600 hover:bg-red-50 rounded-lg transition-colors cursor-pointer"
-                              title="Delete account"
+                              className="p-1.5 text-slate-400 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors cursor-pointer"
+                              title="Delete registered profile"
                             >
                               <Trash2 className="w-4 h-4" />
                             </button>
@@ -729,10 +727,8 @@ export const AdminPortalManager: React.FC = () => {
                     </button>
                     <button
                       onClick={() => {
-                        if (window.confirm(`Delete resource "${res.title}"?`)) {
-                          deletePortalResource(res.id);
-                          showStatus(`Deleted resource "${res.title}".`);
-                        }
+                        deletePortalResource(res.id);
+                        showStatus(`Deleted resource "${res.title}".`);
                       }}
                       className="p-1 text-red-600 hover:bg-red-50 rounded cursor-pointer"
                       title="Delete"
@@ -847,13 +843,11 @@ export const AdminPortalManager: React.FC = () => {
                           </button>
                           <button
                             onClick={() => {
-                              if (window.confirm(`Delete time slot ${slot.timeSlot}?`)) {
-                                deleteRoutineSlot(slot.id);
-                                showStatus(`Deleted routine slot ${slot.timeSlot}.`);
-                              }
+                              deleteRoutineSlot(rawSlot.id);
+                              showStatus('Routine slot deleted successfully.');
                             }}
-                            className="p-1 text-red-600 hover:bg-red-50 rounded"
-                            title="Delete slot"
+                            className="p-1 text-slate-400 hover:text-red-700 hover:bg-red-50 rounded"
+                            title="Delete routine slot"
                           >
                             <Trash2 className="w-3.5 h-3.5" />
                           </button>
@@ -954,10 +948,8 @@ export const AdminPortalManager: React.FC = () => {
                   </button>
                   <button
                     onClick={() => {
-                      if (window.confirm(`Delete query #${item.refNo}?`)) {
-                        deleteStudentGrievance(item.id);
-                        showStatus(`Deleted query #${item.refNo}.`);
-                      }
+                      deleteStudentGrievance(item.id);
+                      showStatus(`Deleted query #${item.refNo}.`);
                     }}
                     className="p-1.5 text-red-600 hover:bg-red-50 rounded-lg cursor-pointer"
                     title="Delete query"

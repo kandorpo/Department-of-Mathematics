@@ -184,6 +184,7 @@ function AppContent() {
               : 'bg-slate-900/90 text-white border-slate-700 hover:bg-slate-900 backdrop-blur-md'
           }`}
           title="Open Website Admin CMS to Edit Content"
+          aria-label="Open Website Admin CMS to Edit Content"
         >
           {isAdminLoggedIn ? (
             <>

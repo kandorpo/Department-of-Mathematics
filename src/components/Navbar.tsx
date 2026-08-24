@@ -80,7 +80,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   };
 
   return (
-    <header className="sticky top-0 z-40 w-full transition-all duration-300">
+    <header className="sticky top-0 z-40 w-full transition-all duration-300" role="banner">
 
       {/* Main Sticky Navigation */}
       <nav
@@ -89,6 +89,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             ? 'shadow-md border-slate-200/90 py-2.5'
             : 'border-slate-200/60 py-3.5'
         }`}
+        aria-label="Department of Mathematics Primary Navigation"
       >
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between">
           
@@ -100,13 +101,14 @@ export const Navbar: React.FC<NavbarProps> = ({
               handleNavClick('#home');
             }}
             className="flex items-center gap-3 group text-left"
+            aria-label="Department of Mathematics Dudhnoi College Home"
           >
             {/* Academic Crest Emblem */}
             <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-lg bg-gradient-to-br from-blue-950 via-slate-900 to-blue-900 flex items-center justify-center text-white shadow-sm border border-blue-800/40 relative overflow-hidden group-hover:scale-105 transition-transform duration-200">
               {DEPARTMENT_INFO.logoUrl ? (
                 <img
                   src={DEPARTMENT_INFO.logoUrl}
-                  alt="Logo"
+                  alt="Academic Crest Emblem"
                   className="w-full h-full object-contain p-0.5"
                   referrerPolicy="no-referrer"
                 />
@@ -136,13 +138,16 @@ export const Navbar: React.FC<NavbarProps> = ({
           </a>
 
           {/* Desktop Navigation Links */}
-          <div className="hidden xl:flex items-center gap-1">
+          <div className="hidden xl:flex items-center gap-1" role="menubar">
             {navLinks.map((link) => {
               const isActive = activeSection === link.href.substring(1);
               return (
                 <button
                   key={link.name}
                   onClick={() => handleNavClick(link.href)}
+                  role="menuitem"
+                  aria-current={isActive ? 'page' : undefined}
+                  aria-label={`Navigate to ${link.name}`}
                   className={`px-2.5 py-1.5 rounded-md text-xs font-semibold tracking-wide transition-all duration-150 cursor-pointer ${
                     isActive
                       ? 'text-blue-900 bg-blue-50 font-bold'
@@ -160,6 +165,10 @@ export const Navbar: React.FC<NavbarProps> = ({
             {/* Quick Links Dropdown */}
             <div className="relative">
               <button
+                id="quick-links-dropdown-btn"
+                aria-haspopup="true"
+                aria-expanded={quickLinksOpen}
+                aria-controls="quick-links-dropdown-menu"
                 onClick={() => setQuickLinksOpen(!quickLinksOpen)}
                 className="flex items-center gap-1 px-2.5 py-1.5 text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200/80 rounded-md transition-colors border border-slate-200 cursor-pointer"
               >
@@ -173,7 +182,12 @@ export const Navbar: React.FC<NavbarProps> = ({
                     className="fixed inset-0 z-40"
                     onClick={() => setQuickLinksOpen(false)}
                   />
-                  <div className="absolute right-0 mt-2 w-72 bg-white rounded-xl shadow-xl border border-slate-200 py-2 z-50 animate-in fade-in slide-in-from-top-2 duration-150">
+                  <div 
+                    id="quick-links-dropdown-menu"
+                    role="menu"
+                    aria-labelledby="quick-links-dropdown-btn"
+                    className="absolute right-0 mt-2 w-72 bg-white rounded-xl shadow-xl border border-slate-200 py-2 z-50 animate-in fade-in slide-in-from-top-2 duration-150"
+                  >
                     <div className="px-3 py-1.5 border-b border-slate-100 mb-1">
                       <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">
                         Academic Shortcuts
@@ -188,6 +202,8 @@ export const Navbar: React.FC<NavbarProps> = ({
                             href={item.href}
                             target="_blank"
                             rel="noopener noreferrer"
+                            role="menuitem"
+                            aria-label={`${item.title}: ${item.desc} (Opens in a new tab)`}
                             className="flex items-start gap-2.5 px-3 py-2 text-xs hover:bg-slate-50 text-slate-700 hover:text-blue-900 transition-colors"
                             onClick={() => setQuickLinksOpen(false)}
                           >
@@ -205,6 +221,8 @@ export const Navbar: React.FC<NavbarProps> = ({
                       return (
                         <button
                           key={idx}
+                          role="menuitem"
+                          aria-label={`${item.title}: ${item.desc}`}
                           onClick={() => {
                             if (item.action) item.action();
                             else if (item.href) handleNavClick(item.href);
@@ -228,7 +246,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             {/* Quick Search */}
             <button
               onClick={onOpenSearch}
-              aria-label="Quick Search"
+              aria-label="Open Academic Search (Ctrl+K)"
               className="p-2 text-slate-600 hover:text-blue-900 hover:bg-slate-100 rounded-md transition-colors border border-transparent hover:border-slate-200 cursor-pointer"
               title="Search Faculty, Courses, Notices (Ctrl+K)"
             >
@@ -238,6 +256,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             {/* Student Portal CTA */}
             <button
               onClick={onOpenStudentPortal}
+              aria-label="Student Portal - Syllabi and PYQs"
               className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-900 hover:bg-blue-950 text-white rounded-md text-xs font-semibold shadow-sm transition-all duration-150 active:scale-95 cursor-pointer border border-blue-950"
             >
               <GraduationCap className="w-4 h-4 text-amber-400" />
@@ -247,6 +266,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             {/* Admin CMS Button */}
             <button
               onClick={() => setIsAdminOpen(true)}
+              aria-label={isAdminLoggedIn ? "Admin Content Management System (Live Editor)" : "Unlock Admin live website editor"}
               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-bold transition-all duration-150 active:scale-95 cursor-pointer border ${
                 isAdminLoggedIn
                   ? 'bg-amber-400 hover:bg-amber-500 text-slate-950 border-amber-500 shadow-xs'
@@ -267,13 +287,14 @@ export const Navbar: React.FC<NavbarProps> = ({
           <div className="flex items-center gap-1.5 xl:hidden">
             <button
               onClick={onOpenSearch}
-              aria-label="Search"
+              aria-label="Search department database"
               className="p-2 text-slate-600 hover:bg-slate-100 rounded-md"
             >
               <Search className="w-5 h-5" />
             </button>
             <button
               onClick={() => setIsAdminOpen(true)}
+              aria-label="Admin CMS login"
               className="px-2.5 py-1 bg-amber-400 text-slate-950 text-xs font-bold rounded-md flex items-center gap-1 cursor-pointer"
               title="Admin Editor"
             >
@@ -282,6 +303,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             </button>
             <button
               onClick={onOpenStudentPortal}
+              aria-label="Open Student Portal"
               className="px-2.5 py-1 bg-blue-900 text-white text-xs font-semibold rounded-md flex items-center gap-1"
             >
               <GraduationCap className="w-3.5 h-3.5 text-amber-400" />
@@ -291,6 +313,7 @@ export const Navbar: React.FC<NavbarProps> = ({
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
               className="p-2 text-slate-700 hover:text-blue-900 hover:bg-slate-100 rounded-md cursor-pointer ml-1"
               aria-label="Toggle navigation menu"
+              aria-expanded={mobileMenuOpen}
             >
               {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
             </button>
