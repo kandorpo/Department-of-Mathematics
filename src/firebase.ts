@@ -1,10 +1,10 @@
 import { initializeApp } from 'firebase/app';
-import { initializeFirestore, doc, onSnapshot, setDoc, getDoc, getDocFromServer, setLogLevel } from 'firebase/firestore';
+import { initializeFirestore, getFirestore, doc, onSnapshot, setDoc, getDoc, getDocFromServer, setLogLevel } from 'firebase/firestore';
 import firebaseConfig from '../firebase-applet-config.json';
 
 export const app = initializeApp(firebaseConfig);
 
-// Silence Firestore internal network warning logs in iframe / offline sandbox mode
+// Silence Firestore internal network warning logs
 try {
   setLogLevel('silent');
 } catch (e) {
@@ -23,12 +23,21 @@ export const auth = {
   } | null
 };
 
-// Initialize Firestore with custom databaseId if configured & force long polling for sandbox/iframe reliability
+// Initialize Firestore with custom databaseId if configured.
+// Try standard getFirestore first for optimal WebSocket/HTTP transport on static hosts like GitHub Pages,
+// falling back to initializeFirestore with long polling if required.
 const customDbId = (firebaseConfig as any).databaseId || (firebaseConfig as any).firestoreDatabaseId || undefined;
 
-export const db = customDbId 
-  ? initializeFirestore(app, { experimentalForceLongPolling: true }, customDbId)
-  : initializeFirestore(app, { experimentalForceLongPolling: true });
+let dbInstance;
+try {
+  dbInstance = customDbId ? getFirestore(app, customDbId) : getFirestore(app);
+} catch (e) {
+  dbInstance = customDbId 
+    ? initializeFirestore(app, { experimentalForceLongPolling: true }, customDbId)
+    : initializeFirestore(app, { experimentalForceLongPolling: true });
+}
+
+export const db = dbInstance;
 
 export const DOC_REF = doc(db, 'department_cms', 'master');
 

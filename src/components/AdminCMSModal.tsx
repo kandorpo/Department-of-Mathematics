@@ -2164,6 +2164,10 @@ export const AdminCMSModal: React.FC = () => {
                             onChange={(e) => {
                               const file = e.target.files?.[0];
                               if (file) {
+                                if (file.size > 500 * 1024) {
+                                  alert(`File size (${(file.size / 1024).toFixed(0)} KB) exceeds the 500 KB limit for database storage. Please compress the PDF or paste a direct document URL.`);
+                                  return;
+                                }
                                 const reader = new FileReader();
                                 reader.onload = (ev) => {
                                   const dataUrl = ev.target?.result as string;

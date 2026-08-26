@@ -109,6 +109,7 @@ export interface DepartmentCMSData {
   studentGrievances?: StudentGrievance[];
   admins?: AdminAccount[];
   adminRegistrationRequests?: AdminRegistrationRequest[];
+  updatedAt?: number;
 }
 
 const STORAGE_KEY = 'dudhnoi_math_cms_master_data_v2';
@@ -330,6 +331,40 @@ const removeUndefined = (obj: any): any => {
   return newObj;
 };
 
+const sanitizeForFirestore = (data: DepartmentCMSData): any => {
+  const cleaned = removeUndefined(data);
+  try {
+    const jsonStr = JSON.stringify(cleaned);
+    // If json size is over 800KB (800,000 chars), optimize giant base64 media strings so Firestore setDoc payload never fails
+    if (jsonStr.length > 800000) {
+      console.warn(`Firestore payload size (${jsonStr.length} bytes) exceeds 800KB safety threshold. Optimizing base64 media payload...`);
+      const optimized = { ...cleaned };
+      if (optimized.departmentInfo) {
+        optimized.departmentInfo = {
+          ...optimized.departmentInfo,
+          imageUrls: (optimized.departmentInfo.imageUrls || []).map((url: string) => 
+            url && url.startsWith('data:image/') && url.length > 100000 ? '' : url
+          )
+        };
+      }
+      if (Array.isArray(optimized.gallery)) {
+        optimized.gallery = optimized.gallery.map((item: any) => ({
+          ...item,
+          imageUrl: item.imageUrl && item.imageUrl.startsWith('data:image/') && item.imageUrl.length > 100000 ? '' : item.imageUrl
+        }));
+      }
+      if (Array.isArray(optimized.notices)) {
+        optimized.notices = optimized.notices.map((n: any) => ({
+          ...n,
+          downloadUrl: n.downloadUrl && n.downloadUrl.length > 200000 ? undefined : n.downloadUrl
+        }));
+      }
+      return optimized;
+    }
+  } catch (e) {}
+  return cleaned;
+};
+
 export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   // Helper to sync faculty count in stats
   const syncFacultyCount = (facList: FacultyMember[], statsList: DepartmentStat[]): DepartmentStat[] => {
@@ -451,12 +486,14 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     routineSlots,
     studentGrievances,
     admins,
-    adminRegistrationRequests
+    adminRegistrationRequests,
+    updatedAt: initialCached?.updatedAt || Date.now()
   });
 
   // Keep stateRef in sync whenever any state hook updates
   useEffect(() => {
     stateRef.current = {
+      ...stateRef.current,
       departmentInfo,
       stats,
       faculty,
@@ -534,7 +571,8 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
         stateRef.current = {
           ...stateRef.current,
-          ...parsed
+          ...parsed,
+          updatedAt: parsed.updatedAt || stateRef.current.updatedAt || Date.now()
         };
       }
 
@@ -571,6 +609,21 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           clearTimeout(connectionTimeout);
           if (docSnap.exists()) {
             const data = docSnap.data() as Partial<DepartmentCMSData>;
+            const localUpdatedAt = stateRef.current?.updatedAt || 0;
+            const remoteUpdatedAt = data?.updatedAt || 0;
+
+            // CRITICAL FIX: If local state has newer timestamp than remote snapshot (e.g. pending local edits on GitHub Pages),
+            // do NOT overwrite local state with older remote snapshot! Push local state to Cloud instead.
+            if (localUpdatedAt > remoteUpdatedAt) {
+              console.warn('Local CMS state is newer than remote Firestore snapshot. Resyncing local changes to Cloud...');
+              const sanitized = sanitizeForFirestore(stateRef.current);
+              setDoc(DOC_REF, sanitized).catch((err) => {
+                console.warn('Resyncing local state to Firestore handled:', err);
+              });
+              setIsLoading(false);
+              return;
+            }
+
             if (data.departmentInfo) setDepartmentInfo((prev) => ({ ...prev, ...data.departmentInfo }));
             if (Array.isArray(data.faculty)) {
               setFaculty(data.faculty);
@@ -610,17 +663,20 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             // Directly replace stateRef with the exact Firestore dataset
             stateRef.current = {
               ...stateRef.current,
-              ...data
+              ...data,
+              updatedAt: remoteUpdatedAt || Date.now()
             };
             try {
               localStorage.setItem(STORAGE_KEY, JSON.stringify(stateRef.current));
             } catch (err) {}
           } else {
             // Initial seed to Firestore if document does not exist yet
-            const initialSeed = removeUndefined({
-              ...stateRef.current
-            });
-            setDoc(DOC_REF, initialSeed).catch((err) => {
+            const seedData = {
+              ...stateRef.current,
+              updatedAt: stateRef.current?.updatedAt || Date.now()
+            };
+            const sanitized = sanitizeForFirestore(seedData);
+            setDoc(DOC_REF, sanitized).catch((err) => {
               console.warn('Initial Firestore seed warning handled gracefully:', err);
               if (err?.code === 'resource-exhausted' || err?.message?.includes('quota') || err?.message?.includes('payload')) {
                 setIsDatabaseQuotaExceeded(true);
@@ -659,10 +715,12 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   // Save changes to localStorage AND Google Cloud Firestore for real-time multi-device sync
   const persist = (data: Partial<DepartmentCMSData>) => {
+    const now = Date.now();
     // 1. Update stateRef immediately so subsequent calls have the latest state
     const updated: DepartmentCMSData = {
       ...stateRef.current,
-      ...data
+      ...data,
+      updatedAt: now
     };
     stateRef.current = updated;
 
@@ -699,7 +757,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }
 
     try {
-      const sanitized = removeUndefined(updated);
+      const sanitized = sanitizeForFirestore(updated);
       setDoc(DOC_REF, sanitized).catch((err: any) => {
         console.error('CRITICAL: Failed to sync changes to Google Cloud Firestore:', err);
         console.error('Data size being sent:', JSON.stringify(sanitized).length);
