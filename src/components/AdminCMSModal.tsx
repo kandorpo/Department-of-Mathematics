@@ -236,7 +236,11 @@ export const AdminCMSModal: React.FC = () => {
     setTimeout(() => setStatusMsg(null), 3000);
   };
 
-  const compressAndReadImage = (file: File, callback: (dataUrl: string) => void) => {
+  const compressAndReadImage = (
+    file: File, 
+    callback: (dataUrl: string) => void,
+    options?: { maxDim?: number; isLogo?: boolean }
+  ) => {
     const reader = new FileReader();
     reader.onload = (e) => {
       const src = e.target?.result as string;
@@ -244,28 +248,37 @@ export const AdminCMSModal: React.FC = () => {
       const img = new Image();
       img.onload = () => {
         const canvas = document.createElement('canvas');
-        const MAX_DIM = 800;
+        const maxDim = options?.maxDim || (options?.isLogo ? 360 : 800);
         let width = img.width;
         let height = img.height;
         if (width > height) {
-          if (width > MAX_DIM) {
-            height *= MAX_DIM / width;
-            width = MAX_DIM;
+          if (width > maxDim) {
+            height = Math.round(height * (maxDim / width));
+            width = maxDim;
           }
         } else {
-          if (height > MAX_DIM) {
-            width *= MAX_DIM / height;
-            height = MAX_DIM;
+          if (height > maxDim) {
+            width = Math.round(width * (maxDim / height));
+            height = maxDim;
           }
         }
         canvas.width = width;
         canvas.height = height;
         const ctx = canvas.getContext('2d');
         if (ctx) {
-          ctx.fillStyle = '#FFFFFF';
-          ctx.fillRect(0, 0, width, height);
+          ctx.imageSmoothingEnabled = true;
+          ctx.imageSmoothingQuality = 'high';
+          const isTransparent = file.type === 'image/png' || file.type === 'image/svg+xml' || file.type === 'image/webp' || options?.isLogo;
+          if (!isTransparent) {
+            ctx.fillStyle = '#FFFFFF';
+            ctx.fillRect(0, 0, width, height);
+          } else {
+            ctx.clearRect(0, 0, width, height);
+          }
           ctx.drawImage(img, 0, 0, width, height);
-          const compressed = canvas.toDataURL('image/jpeg', 0.6);
+          const outputFormat = isTransparent ? 'image/png' : 'image/jpeg';
+          const quality = isTransparent ? undefined : 0.85;
+          const compressed = canvas.toDataURL(outputFormat, quality);
           callback(compressed);
         } else {
           callback(src);
@@ -466,6 +479,7 @@ export const AdminCMSModal: React.FC = () => {
   const handleFileUpload = (file: File | undefined, imageKey: 'logoUrl' | 'imageUrls') => {
     if (!file) return;
 
+    const isLogo = imageKey === 'logoUrl';
     compressAndReadImage(file, (dataUrl) => {
       if (imageKey === 'imageUrls') {
         const updatedImages = [...(generalForm.imageUrls || []), dataUrl];
@@ -477,9 +491,9 @@ export const AdminCMSModal: React.FC = () => {
         const updatedForm = { ...generalForm, [imageKey]: dataUrl };
         setGeneralForm(updatedForm);
         updateDepartmentInfo(updatedForm);
-        showStatus(`${file.name} uploaded and updated.`);
+        showStatus(`${file.name} uploaded & auto-resized for optimal logo dimensions.`);
       }
-    });
+    }, { maxDim: isLogo ? 360 : 800, isLogo });
   };
 
   const handleExportJson = () => {
@@ -1171,32 +1185,70 @@ export const AdminCMSModal: React.FC = () => {
                   </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 mt-6">
                     <div>
-                      <label className="block font-bold text-slate-700 mb-2">Logo Image</label>
+                      <div className="flex items-center justify-between mb-2">
+                        <label className="block font-bold text-slate-700">Logo Image</label>
+                        <span className="text-[10px] font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
+                          Auto-Adjusted Size
+                        </span>
+                      </div>
                       <input
                         type="text"
                         value={generalForm.logoUrl}
                         onChange={(e) => setGeneralForm({ ...generalForm, logoUrl: e.target.value })}
                         className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl outline-none focus:bg-white focus:ring-2 focus:ring-blue-900 mb-2"
-                        placeholder="Paste URL..."
+                        placeholder="Paste image URL or upload below..."
                       />
+
+                      {generalForm.logoUrl && (
+                        <div className="mb-2 p-2 bg-slate-100 border border-slate-200 rounded-xl flex items-center justify-between gap-3">
+                          <div className="flex items-center gap-3 overflow-hidden">
+                            <div className="w-12 h-12 rounded-lg bg-white border border-slate-200 p-1 flex items-center justify-center shrink-0 shadow-xs">
+                              <img 
+                                src={generalForm.logoUrl} 
+                                alt="Logo Preview" 
+                                className="w-full h-full object-contain" 
+                                referrerPolicy="no-referrer"
+                              />
+                            </div>
+                            <div className="min-w-0">
+                              <p className="text-xs font-bold text-slate-800 truncate">Logo Active</p>
+                              <p className="text-[10px] text-slate-500">Auto-scaled & fitted with aspect ratio preservation</p>
+                            </div>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const updatedForm = { ...generalForm, logoUrl: '' };
+                              setGeneralForm(updatedForm);
+                              updateDepartmentInfo(updatedForm);
+                              showStatus('Logo removed.');
+                            }}
+                            className="text-xs text-red-600 hover:text-red-700 font-semibold px-2 py-1 rounded bg-red-50 hover:bg-red-100 transition-colors"
+                          >
+                            Remove
+                          </button>
+                        </div>
+                      )}
+
                       <div 
                         onDragOver={(e) => e.preventDefault()}
                         onDrop={(e) => {
                           e.preventDefault();
                           handleFileUpload(e.dataTransfer.files?.[0], 'logoUrl');
                         }}
-                        className="border-2 border-dashed border-slate-300 rounded-xl p-4 text-center text-xs text-slate-500 hover:border-blue-900 hover:bg-blue-50 transition-colors cursor-pointer"
+                        className="border-2 border-dashed border-slate-300 rounded-xl p-3.5 text-center text-xs text-slate-500 hover:border-blue-900 hover:bg-blue-50 transition-colors cursor-pointer"
                       >
-                        <p>Drag & Drop or</p>
+                        <p className="font-medium text-slate-600">Drag & drop logo image here</p>
+                        <p className="text-[10px] text-slate-400 mt-0.5">Automatically resizes logo dimensions to fit perfectly</p>
                         <input
                           type="file"
-                          accept="image/*, application/pdf"
+                          accept="image/*"
                           onChange={(e) => handleFileUpload(e.target.files?.[0], 'logoUrl')}
                           className="hidden"
                           id="logo-upload"
                         />
-                        <label htmlFor="logo-upload" className="block mt-2 font-bold text-blue-900 cursor-pointer">
-                          Browse Files
+                        <label htmlFor="logo-upload" className="inline-block mt-2 px-3 py-1 bg-blue-900 text-white rounded-lg font-bold text-xs hover:bg-blue-950 transition-colors cursor-pointer">
+                          Upload & Adjust Logo
                         </label>
                       </div>
                     </div>

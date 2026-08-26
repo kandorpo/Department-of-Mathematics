@@ -179,6 +179,25 @@ export const StudentPortalModal: React.FC<StudentPortalModalProps> = ({ isOpen, 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const registerFileInputRef = useRef<HTMLInputElement>(null);
 
+  // Reset forms on modal open
+  useEffect(() => {
+    if (isOpen) {
+      if (!currentStudent) {
+        setLoginIdentifier('');
+        setLoginPassword('');
+      }
+      setLoginError('');
+      setLoginNotice('');
+      setForgotError('');
+      setForgotSuccess('');
+      setForgotOtpSent(false);
+      setForgotOtpVerified(false);
+      setRegError('');
+      setRegSuccess(false);
+      setAvatarError('');
+    }
+  }, [isOpen, currentStudent]);
+
   // Initialize from LocalStorage
   useEffect(() => {
     try {
@@ -436,8 +455,8 @@ export const StudentPortalModal: React.FC<StudentPortalModalProps> = ({ isOpen, 
     setRegPassword('');
     setRegConfirmPassword('');
 
-    // Pre-fill login credentials field for convenience
-    setLoginIdentifier(newStudent.rollNo);
+    // Clear login credentials fields so user enters them explicitly
+    setLoginIdentifier('');
     setLoginPassword('');
     setLoginError('');
 
@@ -974,7 +993,7 @@ export const StudentPortalModal: React.FC<StudentPortalModalProps> = ({ isOpen, 
                       </div>
                     )}
 
-                    <form onSubmit={handleLogin} className="space-y-3.5 text-xs">
+                    <form onSubmit={handleLogin} className="space-y-3.5 text-xs" autoComplete="off">
                       <div>
                         <label className="block font-semibold text-slate-700 mb-1">
                           Roll No / GU Registration No / Email *
@@ -984,9 +1003,10 @@ export const StudentPortalModal: React.FC<StudentPortalModalProps> = ({ isOpen, 
                           <input
                             type="text"
                             required
-                            placeholder="e.g. US-241-102-0042 or student@dudhnoicollege.ac.in"
+                            placeholder="Roll No or College Email"
                             value={loginIdentifier}
                             onChange={(e) => setLoginIdentifier(e.target.value)}
+                            autoComplete="off"
                             className="w-full pl-9 pr-3 py-2.5 bg-slate-50 border border-slate-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-900 focus:bg-white transition-all text-xs text-slate-800"
                           />
                         </div>
@@ -1012,9 +1032,10 @@ export const StudentPortalModal: React.FC<StudentPortalModalProps> = ({ isOpen, 
                         </div>
                         <input
                           type="password"
-                          placeholder="••••••••"
+                          placeholder="Password"
                           value={loginPassword}
                           onChange={(e) => setLoginPassword(e.target.value)}
+                          autoComplete="new-password"
                           className="w-full px-3 py-2.5 bg-slate-50 border border-slate-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-900 focus:bg-white transition-all text-xs text-slate-800"
                         />
                       </div>
