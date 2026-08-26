@@ -579,7 +579,6 @@ export const AdminPortalManager: React.FC = () => {
                     <th className="p-3">Roll & Registration</th>
                     <th className="p-3">Course / Program</th>
                     <th className="p-3">Semester & Batch</th>
-                    <th className="p-3">Assigned Mentor</th>
                     <th className="p-3">Contact</th>
                     <th className="p-3 text-right">Admin Actions</th>
                   </tr>
@@ -617,11 +616,6 @@ export const AdminPortalManager: React.FC = () => {
                         <td className="p-3">
                           <span className="font-medium text-slate-700 block">{stu.semester}</span>
                           <span className="text-[10px] text-slate-500">{stu.batch}</span>
-                        </td>
-                        <td className="p-3">
-                          <span className="font-semibold text-amber-900 bg-amber-50 px-2 py-0.5 rounded border border-amber-200 inline-block text-[11px]">
-                            {stu.mentorName || 'Dr. Bidyut Kalita (HOD)'}
-                          </span>
                         </td>
                         <td className="p-3">
                           <span className="text-slate-600 block text-[11px]">{stu.email}</span>
