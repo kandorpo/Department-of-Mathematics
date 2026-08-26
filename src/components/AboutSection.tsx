@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Eye,
   Target,
@@ -40,6 +40,14 @@ export const AboutSection: React.FC = () => {
   const [quickUsername, setQuickUsername] = useState('');
   const [quickPassword, setQuickPassword] = useState('');
   const [quickAuthError, setQuickAuthError] = useState('');
+
+  useEffect(() => {
+    if (missionModalOpen) {
+      setQuickUsername('');
+      setQuickPassword('');
+      setQuickAuthError('');
+    }
+  }, [missionModalOpen]);
 
   const missionList: string[] = Array.isArray(DEPARTMENT_INFO.mission)
     ? DEPARTMENT_INFO.mission
@@ -398,7 +406,8 @@ export const AboutSection: React.FC = () => {
                       type="text"
                       value={quickUsername}
                       onChange={(e) => setQuickUsername(e.target.value)}
-                      placeholder="e.g. admin or hod@dudhnoicollege.ac.in"
+                      placeholder="Username or Email"
+                      autoComplete="off"
                       className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl outline-none focus:bg-white focus:ring-2 focus:ring-blue-900"
                     />
                   </div>
@@ -408,7 +417,8 @@ export const AboutSection: React.FC = () => {
                       type="password"
                       value={quickPassword}
                       onChange={(e) => setQuickPassword(e.target.value)}
-                      placeholder="••••••••"
+                      placeholder="Password"
+                      autoComplete="new-password"
                       className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl outline-none focus:bg-white focus:ring-2 focus:ring-blue-900"
                     />
                   </div>

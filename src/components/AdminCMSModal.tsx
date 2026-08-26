@@ -207,12 +207,24 @@ export const AdminCMSModal: React.FC = () => {
   // General info form local state
   const [generalForm, setGeneralForm] = useState(departmentInfo);
 
-  // Sync generalForm whenever departmentInfo changes or admin modal opens
+  // Sync generalForm whenever departmentInfo changes or admin modal opens & clear login credentials
   useEffect(() => {
     if (isAdminOpen) {
       setGeneralForm(departmentInfo);
+      if (!isAdminLoggedIn) {
+        setUsername('');
+        setPassword('');
+        setLoginError('');
+        setForgotUsername('');
+        setRegFullName('');
+        setRegUsername('');
+        setRegEmail('');
+        setRegPassword('');
+        setRegError('');
+        setRegSuccessMsg('');
+      }
     }
-  }, [departmentInfo, isAdminOpen]);
+  }, [departmentInfo, isAdminOpen, isAdminLoggedIn]);
 
   // File import ref
   const importFileRef = useRef<HTMLInputElement>(null);
@@ -594,16 +606,17 @@ export const AdminCMSModal: React.FC = () => {
                 </div>
               )}
 
-              <form onSubmit={handleLogin} className="w-full space-y-4 text-left">
+              <form onSubmit={handleLogin} className="w-full space-y-4 text-left" autoComplete="off">
                 <div className="space-y-1.5">
                   <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block">
                     Username or Admin Email
                   </label>
                   <input
                     type="text"
-                    placeholder="username"
+                    placeholder="Username or Admin Email"
                     value={username}
                     onChange={(e) => setUsername(e.target.value)}
+                    autoComplete="off"
                     className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-slate-900 text-sm focus:bg-white focus:ring-2 focus:ring-blue-900 outline-none transition-all"
                     autoFocus
                   />
@@ -625,9 +638,10 @@ export const AdminCMSModal: React.FC = () => {
                   <div className="relative">
                     <input
                       type={showPassword ? 'text' : 'password'}
-                      placeholder="••••••••••••"
+                      placeholder="Password"
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
+                      autoComplete="new-password"
                       className="w-full pl-3.5 pr-10 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-slate-900 text-sm focus:bg-white focus:ring-2 focus:ring-blue-900 outline-none transition-all"
                     />
                     <button
