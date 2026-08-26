@@ -32,26 +32,22 @@ export const Hero: React.FC<HeroProps> = ({
 
   const headerBgImage = (DEPARTMENT_INFO.imageUrls && DEPARTMENT_INFO.imageUrls.length > 0 && DEPARTMENT_INFO.imageUrls[0].trim().length > 5)
     ? DEPARTMENT_INFO.imageUrls[0]
-    : "https://images.unsplash.com/photo-1523050854058-8df90110c9f1?auto=format&fit=crop&q=80&w=1200";
+    : null;
 
   return (
     <section id="home" className="relative bg-gradient-to-b from-slate-900 via-blue-950 to-slate-900 text-white overflow-hidden py-16 sm:py-24 lg:py-28">
       {/* Header Department Background Image */}
-      <div className="absolute inset-0 z-0 pointer-events-none">
-        <img
-          src={headerBgImage}
-          alt="Department Header Banner"
-          className="w-full h-full object-cover object-center opacity-25"
-          referrerPolicy="no-referrer"
-          onError={(e) => {
-            const target = e.currentTarget;
-            if (!target.src.includes('photo-1523050854058')) {
-              target.src = "https://images.unsplash.com/photo-1523050854058-8df90110c9f1?auto=format&fit=crop&q=80&w=1200";
-            }
-          }}
-        />
-        <div className="absolute inset-0 bg-gradient-to-b from-slate-950/80 via-blue-950/80 to-slate-950/95" />
-      </div>
+      {headerBgImage && (
+        <div className="absolute inset-0 z-0 pointer-events-none">
+          <img
+            src={headerBgImage}
+            alt="Department Header Banner"
+            className="w-full h-full object-cover object-center opacity-25"
+            referrerPolicy="no-referrer"
+          />
+          <div className="absolute inset-0 bg-gradient-to-b from-slate-950/80 via-blue-950/80 to-slate-950/95" />
+        </div>
+      )}
 
       {/* Interactive Math Canvas Background */}
       <MathCanvas />

@@ -6,6 +6,13 @@ export interface HeroFoundations {
   researchCell: { title: string; value: string; subtitle: string };
 }
 
+export interface FooterLink {
+  id: string;
+  name: string;
+  url: string; // or section hash e.g. #about
+  isExternal?: boolean;
+}
+
 export type AcademicLevel = 'UG' | 'PG' | 'Research' | 'Add-on';
 
 export type FacultyDesignation = 'Professor' | 'Associate Professor' | 'Assistant Professor' | 'Guest Faculty' | 'Guest Lecturer';
@@ -43,6 +50,9 @@ export interface Course {
   syllabusOutline: string[];
   textbooks: string[];
   learningOutcomes: string[];
+  downloadUrl?: string;
+  externalLink?: string;
+  academicLevel?: string;
 }
 
 export interface ResearchArea {
@@ -64,6 +74,13 @@ export interface Publication {
   doi?: string;
   impactFactor?: string;
   type: 'Journal' | 'Conference' | 'Book Chapter';
+  hIndex?: string;
+  i10Index?: string;
+  specialisation?: string;
+  scopusId?: string;
+  paperLink?: string;
+  pdfUrl?: string;
+  facultyMemberId?: string;
 }
 
 export interface ResearchProject {
@@ -92,6 +109,8 @@ export interface EventItem {
   registrationDeadline?: string;
   image?: string;
   coordinator?: string;
+  downloadUrl?: string;
+  externalLink?: string;
 }
 
 export interface NoticeItem {
@@ -105,6 +124,8 @@ export interface NoticeItem {
   refNo?: string;
   downloadUrl?: string;
   fileSize?: string;
+  publisherName?: string;
+  externalLink?: string;
 }
 
 export interface AchievementItem {
@@ -157,6 +178,7 @@ export interface DepartmentStudent {
   bloodGroup?: string;
   address?: string;
   notes?: string;
+  department?: string;
 }
 
 export interface StudentResource {

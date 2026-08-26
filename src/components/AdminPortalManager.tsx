@@ -60,6 +60,8 @@ export const AdminPortalManager: React.FC = () => {
     departmentInfo,
     updateDepartmentInfo,
     
+    currentAdmin,
+    changePassword,
     isLoading
   } = useDepartmentData();
 
@@ -170,6 +172,7 @@ export const AdminPortalManager: React.FC = () => {
   // Grievance Response State
   const [grievanceReply, setGrievanceReply] = useState('');
   const [grievanceStatus, setGrievanceStatus] = useState<StudentGrievance['status']>('Resolved');
+  const [newPassword, setNewPassword] = useState('');
 
   // Open Edit Student
   const handleOpenEditStudent = (student: StudentProfile) => {
@@ -222,7 +225,7 @@ export const AdminPortalManager: React.FC = () => {
       rollNo: studentForm.rollNo.trim(),
       guRegNo: studentForm.guRegNo?.trim() || '',
       classSection: studentForm.classSection || '',
-      email: studentForm.email?.trim() || `${studentForm.rollNo?.toLowerCase().replace(/[^a-z0-9]/g, '')}@student.dudhnoicollege.ac.in`,
+      email: studentForm.email?.trim() || `${(studentForm.rollNo || '').toLowerCase().replace(/[^a-z0-9]/g, '')}@student.dudhnoicollege.ac.in`,
       phone: studentForm.phone?.trim() || '',
       semester: studentForm.semester || 'B.Sc. 1st Semester (Major)',
       program: (studentForm.program as any) || 'B.Sc. Mathematics (Honours/Major)',
@@ -393,13 +396,13 @@ export const AdminPortalManager: React.FC = () => {
   const filteredStudents = registeredStudentProfiles.filter((s) => {
     const q = searchQuery.toLowerCase();
     return (
-      s.fullName.toLowerCase().includes(q) ||
-      s.rollNo.toLowerCase().includes(q) ||
-      (s.guRegNo && s.guRegNo.toLowerCase().includes(q)) ||
-      s.email.toLowerCase().includes(q) ||
-      s.semester.toLowerCase().includes(q) ||
-      (s.classSection && s.classSection.toLowerCase().includes(q)) ||
-      (s.mentorName && s.mentorName.toLowerCase().includes(q))
+      (s.fullName || '').toLowerCase().includes(q) ||
+      (s.rollNo || '').toLowerCase().includes(q) ||
+      (s.guRegNo || '').toLowerCase().includes(q) ||
+      (s.email || '').toLowerCase().includes(q) ||
+      (s.semester || '').toLowerCase().includes(q) ||
+      (s.classSection || '').toLowerCase().includes(q) ||
+      (s.mentorName || '').toLowerCase().includes(q)
     );
   });
 
@@ -967,46 +970,78 @@ export const AdminPortalManager: React.FC = () => {
       {/* SUBTAB 5: SITE SETTINGS & VISUALS */}
       {/* ========================================================================= */}
       {subTab === 'settings' && (
-        <form onSubmit={handleSaveGeneralInfo} className="space-y-5 text-xs bg-white p-5 rounded-xl border border-slate-200 shadow-xs">
-          <div className="flex items-center justify-between border-b border-slate-200 pb-3">
-            <div>
-              <h4 className="text-base font-bold text-slate-900 font-heading">
-                Portal Site Settings & Visual Configuration
-              </h4>
-              <p className="text-slate-500 text-[11px]">
-                Manage website branding, logo, and department imagery directly from the portal.
-              </p>
+        <div className="space-y-6">
+          <form onSubmit={handleSaveGeneralInfo} className="space-y-5 text-xs bg-white p-5 rounded-xl border border-slate-200 shadow-xs">
+            <div className="flex items-center justify-between border-b border-slate-200 pb-3">
+              <div>
+                <h4 className="text-base font-bold text-slate-900 font-heading">
+                  Portal Site Settings & Visual Configuration
+                </h4>
+                <p className="text-slate-500 text-[11px]">
+                  Manage website branding, logo, and department imagery directly from the portal.
+                </p>
+              </div>
+              <button
+                type="submit"
+                className="px-4 py-2 bg-blue-900 hover:bg-blue-950 text-white font-bold rounded-xl flex items-center gap-1.5 shadow-xs cursor-pointer"
+              >
+                <Save className="w-4 h-4 text-amber-400" />
+                <span>Save Changes</span>
+              </button>
             </div>
-            <button
-              type="submit"
-              className="px-4 py-2 bg-blue-900 hover:bg-blue-950 text-white font-bold rounded-xl flex items-center gap-1.5 shadow-xs cursor-pointer"
-            >
-              <Save className="w-4 h-4 text-amber-400" />
-              <span>Save Changes</span>
-            </button>
-          </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
-              <label className="block font-bold text-slate-700 mb-1">Website Logo URL</label>
-              <input
-                type="text"
-                value={generalForm.logoUrl}
-                onChange={(e) => setGeneralForm({ ...generalForm, logoUrl: e.target.value })}
-                className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl outline-none focus:bg-white focus:ring-2 focus:ring-blue-900"
-              />
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="block font-bold text-slate-700 mb-1">Website Logo URL</label>
+                <input
+                  type="text"
+                  value={generalForm.logoUrl}
+                  onChange={(e) => setGeneralForm({ ...generalForm, logoUrl: e.target.value })}
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl outline-none focus:bg-white focus:ring-2 focus:ring-blue-900"
+                />
+              </div>
+              <div>
+                <label className="block font-bold text-slate-700 mb-1">Department Header Images (Comma separated URLs)</label>
+                <textarea
+                  value={generalForm.imageUrls}
+                  onChange={(e) => setGeneralForm({ ...generalForm, imageUrls: e.target.value })}
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl outline-none focus:bg-white focus:ring-2 focus:ring-blue-900"
+                  rows={3}
+                />
+              </div>
             </div>
-            <div>
-              <label className="block font-bold text-slate-700 mb-1">Department Header Images (Comma separated URLs)</label>
-              <textarea
-                value={generalForm.imageUrls}
-                onChange={(e) => setGeneralForm({ ...generalForm, imageUrls: e.target.value })}
-                className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl outline-none focus:bg-white focus:ring-2 focus:ring-blue-900"
-                rows={3}
+          </form>
+
+          {/* Change Password Section */}
+          <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-xs space-y-4">
+            <h4 className="text-base font-bold text-slate-900 font-heading">Security & Password</h4>
+            <p className="text-xs text-slate-500">Update your account password.</p>
+            
+            <div className="flex flex-col sm:flex-row gap-4">
+              <input 
+                type="password" 
+                placeholder="New Password" 
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                className="flex-1 px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl" 
               />
+              <button 
+                onClick={async () => {
+                  if (currentAdmin && newPassword) {
+                    await changePassword(currentAdmin.id, newPassword);
+                    setNewPassword('');
+                    showStatus("Password updated successfully.");
+                  } else {
+                    alert("Please enter a new password.");
+                  }
+                }}
+                className="px-4 py-2 bg-blue-900 text-white font-bold rounded-xl"
+              >
+                Change Password
+              </button>
             </div>
           </div>
-        </form>
+        </div>
       )}
 
       {/* ========================================================================= */}

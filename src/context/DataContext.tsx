@@ -1,5 +1,6 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, useRef, ReactNode } from 'react';
 import { DOC_REF, onSnapshot, setDoc, OperationType, handleFirestoreError } from '../firebase';
+import { hashPassword, verifyPassword } from '../utils/hashHelper';
 import {
   FacultyMember,
   Course,
@@ -21,7 +22,8 @@ import {
   CourseType,
   RoutineCourseEntry,
   AdminAccount,
-  AdminRegistrationRequest
+  AdminRegistrationRequest,
+  FooterLink
 } from '../types';
 import {
   DEPARTMENT_INFO,
@@ -55,6 +57,7 @@ export interface DepartmentInfoType {
   officeHours: string;
   hodName: string;
   hodTitle: string;
+  hodMessageHeading?: string;
   hodMessage: string;
   vision: string;
   mission: string[];
@@ -75,6 +78,15 @@ export interface DepartmentInfoType {
   welcomeTitle: string;
   welcomeDescription: string;
   heroFoundations: HeroFoundations;
+  footerTagline?: string;
+  footerBadges?: string[];
+  footerDeskTitle?: string;
+  footerAddress?: string;
+  footerPhone?: string;
+  footerEmail?: string;
+  footerCopyright?: string;
+  footerQuickLinks?: FooterLink[];
+  footerAcademicLinks?: FooterLink[];
 }
 
 export interface DepartmentCMSData {
@@ -138,8 +150,11 @@ interface DataContextType {
   isAdminOpen: boolean;
   setIsAdminOpen: (open: boolean) => void;
   isAdminLoggedIn: boolean;
-  loginAdmin: (usernameOrEmail: string, password: string) => boolean;
+  loginAdmin: (usernameOrEmail: string, password: string) => Promise<boolean>;
   logoutAdmin: () => void;
+  changePassword: (adminId: string, newPassword: string) => Promise<void>;
+  resetAdminPassword: (token: string, newPassword: string) => Promise<boolean>;
+  generatePasswordResetToken: (usernameOrEmail: string) => string | null;
   addAdminAccount: (account: AdminAccount) => void;
   updateAdminAccount: (account: AdminAccount) => void;
   deleteAdminAccount: (id: string) => void;
@@ -160,6 +175,7 @@ interface DataContextType {
   addDepartmentStudent: (student: DepartmentStudent) => void;
   updateDepartmentStudent: (student: DepartmentStudent) => void;
   deleteDepartmentStudent: (id: string) => void;
+  deleteMultipleDepartmentStudents: (ids: string[]) => void;
   bulkImportDepartmentStudents: (students: DepartmentStudent[]) => void;
   verifyStudentEligibility: (fullName: string, rollNo: string, courseProgram: string) => VerificationResult;
 
@@ -246,25 +262,7 @@ const DEFAULT_ADMIN_ACCOUNTS: AdminAccount[] = [
     email: 'kandorpobarman@gmail.com',
     fullName: 'Kandorpo Barman',
     role: 'Super Admin',
-    passwordHash: 'Daisuke34',
-    status: 'Active'
-  },
-  {
-    id: 'admin-hod',
-    username: 'hod_math',
-    email: 'hod@dudhnoicollege.ac.in',
-    fullName: 'HOD Mathematics',
-    role: 'HOD',
-    passwordHash: 'math1972',
-    status: 'Active'
-  },
-  {
-    id: 'admin-dept',
-    username: 'department_admin',
-    email: 'math_dept@dudhnoicollege.ac.in',
-    fullName: 'Department Coordinator',
-    role: 'Department Admin',
-    passwordHash: 'dudhnoi1972',
+    passwordHash: 'fffb66db81f4495f2d7f94dd1a74601fcaf0e18c79c05afba28b16dfc452cf39',
     status: 'Active'
   }
 ];
@@ -292,35 +290,47 @@ const normalizeRoutineSlot = (slot: any): RoutineSlot => {
   };
 };
 
+// Helper to get initial stored data immediately for synchronous first render
+const getInitialStoredData = (): Partial<DepartmentCMSData> | null => {
+  try {
+    const stored = typeof localStorage !== 'undefined' ? localStorage.getItem(STORAGE_KEY) : null;
+    if (stored) {
+      return JSON.parse(stored);
+    }
+  } catch (e) {
+    console.warn('Could not parse stored CMS data:', e);
+  }
+  return null;
+};
+
+const PRE_REGISTERED_STUDENT_IDS = new Set([
+  'dept-stu-01', 'dept-stu-02', 'dept-stu-03', 'dept-stu-04', 'dept-stu-05',
+  'dept-stu-06', 'dept-stu-07', 'dept-stu-08', 'dept-stu-09', 'dept-stu-10', 'dept-stu-11'
+]);
+
+const cleanDepartmentStudents = (students: DepartmentStudent[]): DepartmentStudent[] => {
+  if (!Array.isArray(students)) return [];
+  return students.filter((s) => s && s.id && !PRE_REGISTERED_STUDENT_IDS.has(s.id));
+};
+
+const removeUndefined = (obj: any): any => {
+  if (obj === undefined) return null;
+  if (typeof obj !== 'object' || obj === null) return obj;
+  
+  if (Array.isArray(obj)) {
+    return obj.map(removeUndefined);
+  }
+  
+  const newObj: any = {};
+  for (const key in obj) {
+    if (obj[key] !== undefined) {
+      newObj[key] = removeUndefined(obj[key]);
+    }
+  }
+  return newObj;
+};
+
 export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  // Master state
-  const [departmentInfo, setDepartmentInfo] = useState<DepartmentInfoType>(DEPARTMENT_INFO);
-  const [stats, setStats] = useState<DepartmentStat[]>(DEPARTMENT_STATS);
-  const [faculty, setFaculty] = useState<FacultyMember[]>(FACULTY_DATA);
-  const [courses, setCourses] = useState<Course[]>(COURSES_DATA);
-  const [notices, setNotices] = useState<NoticeItem[]>(NOTICES_DATA);
-  const [events, setEvents] = useState<EventItem[]>(EVENTS_DATA);
-  const [researchAreas, setResearchAreas] = useState<ResearchArea[]>(RESEARCH_AREAS);
-  const [researchProjects, setResearchProjects] = useState<ResearchProject[]>(RESEARCH_PROJECTS);
-  const [publications, setPublications] = useState<Publication[]>(RESEARCH_PUBLICATIONS);
-  const [achievements, setAchievements] = useState<AchievementItem[]>(ACHIEVEMENTS_DATA);
-  const [gallery, setGallery] = useState<GalleryItem[]>(GALLERY_DATA);
-  const [departmentStudents, setDepartmentStudents] = useState<DepartmentStudent[]>(DEFAULT_DEPARTMENT_STUDENTS);
-  const [blogs, setBlogs] = useState<BlogPost[]>(DEFAULT_BLOG_POSTS);
-  const [registeredStudentProfiles, setRegisteredStudentProfiles] = useState<StudentProfile[]>(DEFAULT_STUDENT_PROFILES);
-  const [portalResources, setPortalResources] = useState<StudentResource[]>(STUDENT_RESOURCES);
-  const [routineSlots, setRoutineSlots] = useState<RoutineSlot[]>(DEFAULT_ROUTINE_SLOTS.map(normalizeRoutineSlot));
-  const [studentGrievances, setStudentGrievances] = useState<StudentGrievance[]>(DEFAULT_GRIEVANCES);
-
-  // Admin UI State
-  const [isAdminOpen, setIsAdminOpen] = useState(false);
-  const [isAdminLoggedIn, setIsAdminLoggedIn] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
-  const [admins, setAdmins] = useState<AdminAccount[]>(DEFAULT_ADMIN_ACCOUNTS);
-  const [currentAdmin, setCurrentAdmin] = useState<AdminAccount | null>(null);
-  const [adminRegistrationRequests, setAdminRegistrationRequests] = useState<AdminRegistrationRequest[]>([]);
-  const [isDatabaseQuotaExceeded, setIsDatabaseQuotaExceeded] = useState(false);
-
   // Helper to sync faculty count in stats
   const syncFacultyCount = (facList: FacultyMember[], statsList: DepartmentStat[]): DepartmentStat[] => {
     return statsList.map((st) => {
@@ -331,24 +341,179 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     });
   };
 
+  const initialCached = getInitialStoredData();
+
+  // Master state initialized lazily from localStorage cache. If a key is present in cache (even if empty array []), use it.
+  const [departmentInfo, setDepartmentInfo] = useState<DepartmentInfoType>(() => ({
+    ...DEPARTMENT_INFO,
+    ...(initialCached?.departmentInfo || {})
+  }));
+  const [faculty, setFaculty] = useState<FacultyMember[]>(() =>
+    Array.isArray(initialCached?.faculty) ? initialCached.faculty : FACULTY_DATA
+  );
+  const [stats, setStats] = useState<DepartmentStat[]>(() => {
+    const initialFac = Array.isArray(initialCached?.faculty) ? initialCached.faculty : FACULTY_DATA;
+    const initialSt = Array.isArray(initialCached?.stats) ? initialCached.stats : DEPARTMENT_STATS;
+    return syncFacultyCount(initialFac, initialSt);
+  });
+  const [courses, setCourses] = useState<Course[]>(() =>
+    Array.isArray(initialCached?.courses) ? initialCached.courses : COURSES_DATA
+  );
+  const [notices, setNotices] = useState<NoticeItem[]>(() =>
+    Array.isArray(initialCached?.notices) ? initialCached.notices : NOTICES_DATA
+  );
+  const [events, setEvents] = useState<EventItem[]>(() =>
+    Array.isArray(initialCached?.events) ? initialCached.events : EVENTS_DATA
+  );
+  const [researchAreas, setResearchAreas] = useState<ResearchArea[]>(() =>
+    Array.isArray(initialCached?.researchAreas) ? initialCached.researchAreas : RESEARCH_AREAS
+  );
+  const [researchProjects, setResearchProjects] = useState<ResearchProject[]>(() =>
+    Array.isArray(initialCached?.researchProjects) ? initialCached.researchProjects : RESEARCH_PROJECTS
+  );
+  const [publications, setPublications] = useState<Publication[]>(() =>
+    Array.isArray(initialCached?.publications) ? initialCached.publications : RESEARCH_PUBLICATIONS
+  );
+  const [achievements, setAchievements] = useState<AchievementItem[]>(() =>
+    Array.isArray(initialCached?.achievements) ? initialCached.achievements : ACHIEVEMENTS_DATA
+  );
+  const [gallery, setGallery] = useState<GalleryItem[]>(() =>
+    Array.isArray(initialCached?.gallery) ? initialCached.gallery : GALLERY_DATA
+  );
+  const [departmentStudents, setDepartmentStudents] = useState<DepartmentStudent[]>(() =>
+    Array.isArray(initialCached?.departmentStudents) ? cleanDepartmentStudents(initialCached.departmentStudents) : []
+  );
+  const [blogs, setBlogs] = useState<BlogPost[]>(() =>
+    Array.isArray(initialCached?.blogs) ? initialCached.blogs : DEFAULT_BLOG_POSTS
+  );
+  const [registeredStudentProfiles, setRegisteredStudentProfiles] = useState<StudentProfile[]>(() =>
+    Array.isArray(initialCached?.registeredStudentProfiles) ? initialCached.registeredStudentProfiles : DEFAULT_STUDENT_PROFILES
+  );
+  const [portalResources, setPortalResources] = useState<StudentResource[]>(() =>
+    Array.isArray(initialCached?.portalResources) ? initialCached.portalResources : STUDENT_RESOURCES
+  );
+  const [routineSlots, setRoutineSlots] = useState<RoutineSlot[]>(() =>
+    Array.isArray(initialCached?.routineSlots) ? initialCached.routineSlots.map(normalizeRoutineSlot) : DEFAULT_ROUTINE_SLOTS.map(normalizeRoutineSlot)
+  );
+  const [studentGrievances, setStudentGrievances] = useState<StudentGrievance[]>(() =>
+    Array.isArray(initialCached?.studentGrievances) ? initialCached.studentGrievances : DEFAULT_GRIEVANCES
+  );
+
+  // Admin UI State
+  const [isAdminOpen, setIsAdminOpen] = useState(false);
+  const [isAdminLoggedIn, setIsAdminLoggedIn] = useState(() => {
+    try {
+      return typeof localStorage !== 'undefined' && localStorage.getItem(AUTH_KEY) === 'true';
+    } catch {
+      return false;
+    }
+  });
+  const [isLoading, setIsLoading] = useState(false);
+  const [admins, setAdmins] = useState<AdminAccount[]>(() =>
+    Array.isArray(initialCached?.admins) ? initialCached.admins : DEFAULT_ADMIN_ACCOUNTS
+  );
+  const [currentAdmin, setCurrentAdmin] = useState<AdminAccount | null>(() => {
+    try {
+      const auth = typeof localStorage !== 'undefined' ? localStorage.getItem(AUTH_KEY) : null;
+      if (auth === 'true') {
+        const savedUid = localStorage.getItem(AUTH_USER_KEY);
+        const adminList = Array.isArray(initialCached?.admins) ? initialCached.admins : DEFAULT_ADMIN_ACCOUNTS;
+        if (savedUid) {
+          return adminList.find(a => a.id === savedUid) || adminList[0] || DEFAULT_ADMIN_ACCOUNTS[0];
+        }
+        return adminList[0] || DEFAULT_ADMIN_ACCOUNTS[0];
+      }
+    } catch {}
+    return null;
+  });
+  const [adminRegistrationRequests, setAdminRegistrationRequests] = useState<AdminRegistrationRequest[]>(() =>
+    Array.isArray(initialCached?.adminRegistrationRequests) ? initialCached.adminRegistrationRequests : []
+  );
+  const [isDatabaseQuotaExceeded, setIsDatabaseQuotaExceeded] = useState(false);
+
+  // Live state reference to always hold the complete authoritative document
+  const stateRef = useRef<DepartmentCMSData>({
+    departmentInfo,
+    stats,
+    faculty,
+    courses,
+    notices,
+    events,
+    researchAreas,
+    researchProjects,
+    publications,
+    achievements,
+    gallery,
+    departmentStudents,
+    blogs,
+    registeredStudentProfiles,
+    portalResources,
+    routineSlots,
+    studentGrievances,
+    admins,
+    adminRegistrationRequests
+  });
+
+  // Keep stateRef in sync whenever any state hook updates
+  useEffect(() => {
+    stateRef.current = {
+      departmentInfo,
+      stats,
+      faculty,
+      courses,
+      notices,
+      events,
+      researchAreas,
+      researchProjects,
+      publications,
+      achievements,
+      gallery,
+      departmentStudents,
+      blogs,
+      registeredStudentProfiles,
+      portalResources,
+      routineSlots,
+      studentGrievances,
+      admins,
+      adminRegistrationRequests
+    };
+  }, [
+    departmentInfo,
+    stats,
+    faculty,
+    courses,
+    notices,
+    events,
+    researchAreas,
+    researchProjects,
+    publications,
+    achievements,
+    gallery,
+    departmentStudents,
+    blogs,
+    registeredStudentProfiles,
+    portalResources,
+    routineSlots,
+    studentGrievances,
+    admins,
+    adminRegistrationRequests
+  ]);
+
   // Load initial from localStorage & subscribe to Firestore live sync
   useEffect(() => {
     // 1. Initial quick load from localStorage for immediate render
     try {
       const stored = localStorage.getItem(STORAGE_KEY);
-      let currentFaculty = FACULTY_DATA;
-      let parsed: Partial<DepartmentCMSData> | null = null;
       if (stored) {
-        parsed = JSON.parse(stored);
-        if (parsed && parsed.departmentInfo) setDepartmentInfo((prev) => ({ ...prev, ...parsed!.departmentInfo }));
+        const parsed = JSON.parse(stored) as Partial<DepartmentCMSData>;
+        let currentFaculty = faculty;
+        if (parsed.departmentInfo) setDepartmentInfo((prev) => ({ ...prev, ...parsed.departmentInfo }));
         if (Array.isArray(parsed.faculty)) {
           currentFaculty = parsed.faculty;
           setFaculty(parsed.faculty);
         }
         if (Array.isArray(parsed.stats)) {
           setStats(syncFacultyCount(currentFaculty, parsed.stats));
-        } else {
-          setStats(syncFacultyCount(currentFaculty, DEPARTMENT_STATS));
         }
         if (Array.isArray(parsed.courses)) setCourses(parsed.courses);
         if (Array.isArray(parsed.notices)) setNotices(parsed.notices);
@@ -358,7 +523,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         if (Array.isArray(parsed.publications)) setPublications(parsed.publications);
         if (Array.isArray(parsed.achievements)) setAchievements(parsed.achievements);
         if (Array.isArray(parsed.gallery)) setGallery(parsed.gallery);
-        if (Array.isArray(parsed.departmentStudents)) setDepartmentStudents(parsed.departmentStudents);
+        if (Array.isArray(parsed.departmentStudents)) setDepartmentStudents(cleanDepartmentStudents(parsed.departmentStudents));
         if (Array.isArray(parsed.blogs)) setBlogs(parsed.blogs);
         if (Array.isArray(parsed.registeredStudentProfiles)) setRegisteredStudentProfiles(parsed.registeredStudentProfiles);
         if (Array.isArray(parsed.portalResources)) setPortalResources(parsed.portalResources);
@@ -366,6 +531,11 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         if (Array.isArray(parsed.adminRegistrationRequests)) setAdminRegistrationRequests(parsed.adminRegistrationRequests);
         if (Array.isArray(parsed.routineSlots)) setRoutineSlots(parsed.routineSlots.map(normalizeRoutineSlot));
         if (Array.isArray(parsed.studentGrievances)) setStudentGrievances(parsed.studentGrievances);
+
+        stateRef.current = {
+          ...stateRef.current,
+          ...parsed
+        };
       }
 
       const auth = localStorage.getItem(AUTH_KEY);
@@ -373,7 +543,8 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         setIsAdminLoggedIn(true);
         const savedUid = localStorage.getItem(AUTH_USER_KEY);
         if (savedUid) {
-          const matched = (parsed?.admins || DEFAULT_ADMIN_ACCOUNTS).find(a => a.id === savedUid);
+          const currentAdmins = stateRef.current.admins || DEFAULT_ADMIN_ACCOUNTS;
+          const matched = currentAdmins.find(a => a.id === savedUid);
           if (matched) {
             setCurrentAdmin(matched);
           } else {
@@ -387,11 +558,9 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       console.warn('Error loading cached data from localStorage:', e);
     }
 
-    // 2. Real-time Live Synchronization with Google Cloud Firestore with a 2-second timeout fallback
+    // 2. Real-time Live Synchronization with Google Cloud Firestore
     const connectionTimeout = setTimeout(() => {
-      console.warn('Firestore connection timeout: falling back to localStorage cache for initial render');
       setIsLoading(false);
-      setIsDatabaseQuotaExceeded(true);
     }, 2000);
 
     let unsub: (() => void) | null = null;
@@ -400,7 +569,6 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         DOC_REF,
         (docSnap) => {
           clearTimeout(connectionTimeout);
-          setIsDatabaseQuotaExceeded(false);
           if (docSnap.exists()) {
             const data = docSnap.data() as Partial<DepartmentCMSData>;
             if (data.departmentInfo) setDepartmentInfo((prev) => ({ ...prev, ...data.departmentInfo }));
@@ -417,7 +585,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             if (Array.isArray(data.publications)) setPublications(data.publications);
             if (Array.isArray(data.achievements)) setAchievements(data.achievements);
             if (Array.isArray(data.gallery)) setGallery(data.gallery);
-            if (Array.isArray(data.departmentStudents)) setDepartmentStudents(data.departmentStudents);
+            if (Array.isArray(data.departmentStudents)) setDepartmentStudents(cleanDepartmentStudents(data.departmentStudents));
             if (Array.isArray(data.blogs)) setBlogs(data.blogs);
             if (Array.isArray(data.registeredStudentProfiles)) setRegisteredStudentProfiles(data.registeredStudentProfiles);
             if (Array.isArray(data.portalResources)) setPortalResources(data.portalResources);
@@ -439,34 +607,20 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
               }
             }
 
-            // Update localStorage cache
+            // Directly replace stateRef with the exact Firestore dataset
+            stateRef.current = {
+              ...stateRef.current,
+              ...data
+            };
             try {
-              localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+              localStorage.setItem(STORAGE_KEY, JSON.stringify(stateRef.current));
             } catch (err) {}
           } else {
             // Initial seed to Firestore if document does not exist yet
-            const initialSeed: DepartmentCMSData = {
-              departmentInfo: DEPARTMENT_INFO,
-              stats: syncFacultyCount(FACULTY_DATA, DEPARTMENT_STATS),
-              faculty: FACULTY_DATA,
-              courses: COURSES_DATA,
-              notices: NOTICES_DATA,
-              events: EVENTS_DATA,
-              researchAreas: RESEARCH_AREAS,
-              researchProjects: RESEARCH_PROJECTS,
-              publications: RESEARCH_PUBLICATIONS,
-              achievements: ACHIEVEMENTS_DATA,
-              gallery: GALLERY_DATA,
-              departmentStudents: DEFAULT_DEPARTMENT_STUDENTS,
-              blogs: DEFAULT_BLOG_POSTS,
-              registeredStudentProfiles: DEFAULT_STUDENT_PROFILES,
-              portalResources: STUDENT_RESOURCES,
-              routineSlots: DEFAULT_ROUTINE_SLOTS.map(normalizeRoutineSlot),
-              studentGrievances: DEFAULT_GRIEVANCES,
-              admins: DEFAULT_ADMIN_ACCOUNTS,
-              adminRegistrationRequests: []
-            };
-            setDoc(DOC_REF, initialSeed, { merge: true }).catch((err) => {
+            const initialSeed = removeUndefined({
+              ...stateRef.current
+            });
+            setDoc(DOC_REF, initialSeed).catch((err) => {
               console.warn('Initial Firestore seed warning handled gracefully:', err);
               if (err?.code === 'resource-exhausted' || err?.message?.includes('quota') || err?.message?.includes('payload')) {
                 setIsDatabaseQuotaExceeded(true);
@@ -477,16 +631,18 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         },
         (error: any) => {
           clearTimeout(connectionTimeout);
-          console.warn('Firestore real-time sync subscription error:', error);
+          console.warn('Firestore real-time sync subscription status:', error);
           setIsLoading(false);
-          setIsDatabaseQuotaExceeded(true);
+          if (error?.code === 'resource-exhausted') {
+            setIsDatabaseQuotaExceeded(true);
+          }
           const errInfo = {
             error: error instanceof Error ? error.message : String(error),
             code: error?.code || null,
             operationType: 'get',
             path: 'department_cms/master'
           };
-          console.error('Firestore Error Handled Gracefully (Falling back to local-only mode): ', JSON.stringify(errInfo));
+          console.warn('Firestore subscription info: ', JSON.stringify(errInfo));
         }
       );
     } catch (err) {
@@ -503,33 +659,15 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   // Save changes to localStorage AND Google Cloud Firestore for real-time multi-device sync
   const persist = (data: Partial<DepartmentCMSData>) => {
-    console.log('Persisting data:', data);
-    // 1. Save to localStorage
-    try {
-      const currentStored = localStorage.getItem(STORAGE_KEY);
-      const current: DepartmentCMSData = currentStored
-        ? JSON.parse(currentStored)
-        : {
-            departmentInfo,
-            stats,
-            faculty,
-            courses,
-            notices,
-            events,
-            researchAreas,
-            researchProjects,
-            publications,
-            achievements,
-            gallery,
-            departmentStudents,
-            blogs,
-            registeredStudentProfiles,
-            portalResources,
-            routineSlots,
-            studentGrievances
-          };
-      const updated = { ...current, ...data };
+    // 1. Update stateRef immediately so subsequent calls have the latest state
+    const updated: DepartmentCMSData = {
+      ...stateRef.current,
+      ...data
+    };
+    stateRef.current = updated;
 
+    // 2. Save full authoritative document to localStorage
+    try {
       try {
         localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
       } catch (e: any) {
@@ -554,28 +692,23 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       console.error('Failed to persist CMS data to localStorage:', e);
     }
 
-    // 2. Save to Google Cloud Firestore (triggers real-time update on all client screens)
+    // 3. Save to Google Cloud Firestore without merge to ensure deleted elements stay permanently deleted
     if (isDatabaseQuotaExceeded) {
       console.log('Skipping Firestore sync: database is offline or quota has been exceeded. Changes are saved to local sandbox.');
       return;
     }
 
     try {
-      setDoc(DOC_REF, data, { merge: true }).catch((err: any) => {
-        console.error('Failed to sync changes to Google Cloud Firestore:', err);
+      const sanitized = removeUndefined(updated);
+      setDoc(DOC_REF, sanitized).catch((err: any) => {
+        console.error('CRITICAL: Failed to sync changes to Google Cloud Firestore:', err);
+        console.error('Data size being sent:', JSON.stringify(sanitized).length);
         if (err?.code === 'resource-exhausted' || err?.message?.includes('quota') || err?.message?.includes('payload')) {
           console.warn('Error: Cloud database quota has been exceeded or image size is too large.');
           setIsDatabaseQuotaExceeded(true);
         } else {
           console.warn('Warning: Cloud sync failed. Changes are saved locally.');
         }
-        const errInfo = {
-          error: err instanceof Error ? err.message : String(err),
-          code: err?.code || null,
-          operationType: 'write',
-          path: 'department_cms/master'
-        };
-        console.error('Firestore Write Error Handled Gracefully: ', JSON.stringify(errInfo));
       });
     } catch (err) {
       console.error('Error invoking setDoc on Firestore:', err);
@@ -583,31 +716,33 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   };
 
   // Auth handler
-  const loginAdmin = (usernameOrEmail: string, password: string): boolean => {
+  const loginAdmin = async (usernameOrEmail: string | undefined, password: string): Promise<boolean> => {
+    if (!usernameOrEmail) return false;
     const cleanUser = usernameOrEmail.trim().toLowerCase();
     const cleanPass = password.trim();
 
     const matched = admins.find(a => 
-      (a.username.toLowerCase() === cleanUser || a.email.toLowerCase() === cleanUser) &&
-      a.passwordHash === cleanPass &&
-      a.status === 'Active'
+      (a.username || '').toLowerCase() === cleanUser || (a.email || '').toLowerCase() === cleanUser
     );
 
-    if (matched) {
-      setIsAdminLoggedIn(true);
-      setCurrentAdmin(matched);
-      localStorage.setItem(AUTH_KEY, 'true');
-      localStorage.setItem(AUTH_USER_KEY, matched.id);
+    if (matched && matched.status === 'Active') {
+      const isCorrectPassword = await verifyPassword(cleanPass, matched.passwordHash);
+      if (isCorrectPassword) {
+        setIsAdminLoggedIn(true);
+        setCurrentAdmin(matched);
+        localStorage.setItem(AUTH_KEY, 'true');
+        localStorage.setItem(AUTH_USER_KEY, matched.id);
 
-      // Update last login
-      const updatedAdmins = admins.map(a => 
-        a.id === matched.id 
-          ? { ...a, lastLogin: new Date().toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' }) + ' ' + new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) } 
-          : a
-      );
-      setAdmins(updatedAdmins);
-      persist({ admins: updatedAdmins });
-      return true;
+        // Update last login
+        const updatedAdmins = admins.map(a => 
+          a.id === matched.id 
+            ? { ...a, lastLogin: new Date().toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' }) + ' ' + new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) } 
+            : a
+        );
+        setAdmins(updatedAdmins);
+        persist({ admins: updatedAdmins });
+        return true;
+      }
     }
     return false;
   };
@@ -619,25 +754,76 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     localStorage.removeItem(AUTH_USER_KEY);
   };
 
+  const changePassword = async (adminId: string, newPassword: string) => {
+    const hashedPassword = await hashPassword(newPassword);
+    setAdmins((prev) => {
+      const updated = prev.map((a) => (a.id === adminId ? { ...a, passwordHash: hashedPassword } : a));
+      persist({ admins: updated });
+      return updated;
+    });
+  };
+
+  const generatePasswordResetToken = (usernameOrEmail: string | undefined): string | null => {
+    if (!usernameOrEmail) return null;
+    const cleanUser = usernameOrEmail.trim().toLowerCase();
+    const admin = admins.find(a => 
+      (a.username || '').toLowerCase() === cleanUser || 
+      (a.email || '').toLowerCase() === cleanUser
+    );
+    if (!admin) return null;
+
+    const token = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+    
+    // Store token in admin record
+    setAdmins((prev) => {
+        const updated = prev.map((a) => (a.id === admin.id ? { ...a, resetToken: token, resetTokenExpiry: Date.now() + 3600000 } : a));
+        persist({ admins: updated });
+        return updated;
+    });
+
+    return token;
+  };
+
+  const resetAdminPassword = async (token: string, newPassword: string): Promise<boolean> => {
+    const admin = admins.find(a => a.resetToken === token);
+    if (!admin || (admin.resetTokenExpiry && admin.resetTokenExpiry < Date.now())) return false;
+    
+    await changePassword(admin.id, newPassword);
+    
+    // Clear token
+    setAdmins((prev) => {
+        const updated = prev.map((a) => (a.id === admin.id ? { ...a, resetToken: undefined, resetTokenExpiry: undefined } : a));
+        persist({ admins: updated });
+        return updated;
+    });
+    return true;
+  };
+
   const addAdminAccount = (account: AdminAccount) => {
-    const updated = [...admins, account];
-    setAdmins(updated);
-    persist({ admins: updated });
+    setAdmins((prev) => {
+      const updated = [...prev, account];
+      persist({ admins: updated });
+      return updated;
+    });
   };
 
   const updateAdminAccount = (account: AdminAccount) => {
-    const updated = admins.map(a => a.id === account.id ? account : a);
-    setAdmins(updated);
-    persist({ admins: updated });
+    setAdmins((prev) => {
+      const updated = prev.map(a => a.id === account.id ? account : a);
+      persist({ admins: updated });
+      return updated;
+    });
     if (currentAdmin && currentAdmin.id === account.id) {
       setCurrentAdmin(account);
     }
   };
 
   const deleteAdminAccount = (id: string) => {
-    const updated = admins.filter(a => a.id !== id);
-    setAdmins(updated);
-    persist({ admins: updated });
+    setAdmins((prev) => {
+      const updated = prev.filter(a => a.id !== id);
+      persist({ admins: updated });
+      return updated;
+    });
   };
 
   const submitAdminRegistrationRequest = (req: Omit<AdminRegistrationRequest, "id" | "status" | "requestDate">) => {
@@ -656,7 +842,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     const request = adminRegistrationRequests.find(r => r.id === id);
     if (!request) return;
 
-    const duplicate = admins.some(a => a.username.toLowerCase() === request.username.toLowerCase() || a.email.toLowerCase() === request.email.toLowerCase());
+    const duplicate = admins.some(a => (a.username || '').toLowerCase() === (request.username || '').toLowerCase() || (a.email || '').toLowerCase() === (request.email || '').toLowerCase());
     if (duplicate) {
       alert("Cannot approve: An administrator with this Username or Email already exists.");
       return;
@@ -755,11 +941,17 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   };
 
   const deleteDepartmentStudent = (id: string) => {
-    console.log('Attempting to delete student with ID:', id);
     setDepartmentStudents((prev) => {
-      console.log('Current students count:', prev.length);
       const updated = prev.filter((s) => s.id !== id);
-      console.log('Students count after filter:', updated.length);
+      persist({ departmentStudents: updated });
+      return updated;
+    });
+  };
+
+  const deleteMultipleDepartmentStudents = (ids: string[]) => {
+    const idSet = new Set(ids);
+    setDepartmentStudents((prev) => {
+      const updated = prev.filter((s) => !idSet.has(s.id));
       persist({ departmentStudents: updated });
       return updated;
     });
@@ -768,8 +960,8 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const bulkImportDepartmentStudents = (newStudents: DepartmentStudent[]) => {
     setDepartmentStudents((prev) => {
       // Merge unique by rollNo or id
-      const existingRolls = new Set(prev.map((s) => s.rollNo.toLowerCase()));
-      const filteredNew = newStudents.filter((s) => !existingRolls.has(s.rollNo.toLowerCase()));
+      const existingRolls = new Set(prev.map((s) => (s.rollNo || '').toLowerCase()));
+      const filteredNew = newStudents.filter((s) => !existingRolls.has((s.rollNo || '').toLowerCase()));
       const updated = [...filteredNew, ...prev];
       persist({ departmentStudents: updated });
       return updated;
@@ -777,9 +969,10 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   };
 
   // Student verification for portal registration
-  const verifyStudentEligibility = (fullName: string, rollNo: string, courseProgram: string): VerificationResult => {
-    const normName = fullName.trim().toLowerCase().replace(/\s+/g, ' ');
-    const normRoll = rollNo.trim().toLowerCase().replace(/[^a-z0-9]/g, '');
+  const verifyStudentEligibility = (fullName: string | undefined, rollNo: string | undefined, courseProgram: string | undefined): VerificationResult => {
+    const normName = (fullName || '').trim().toLowerCase().replace(/\s+/g, ' ');
+    const normRoll = (rollNo || '').trim().toLowerCase().replace(/[^a-z0-9]/g, '');
+    const normCourse = (courseProgram || '').toLowerCase();
 
     if (!normName && !normRoll) {
       return {
@@ -790,9 +983,9 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
     // Search department active student list
     const matched = departmentStudents.find((s) => {
-      const sRollClean = s.rollNo.toLowerCase().replace(/[^a-z0-9]/g, '');
-      const sGuClean = s.guRegNo ? s.guRegNo.toLowerCase().replace(/[^a-z0-9]/g, '') : '';
-      const sNameClean = s.fullName.toLowerCase().replace(/\s+/g, ' ');
+      const sRollClean = (s.rollNo || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+      const sGuClean = s.guRegNo ? (s.guRegNo || '').toLowerCase().replace(/[^a-z0-9]/g, '') : '';
+      const sNameClean = (s.fullName || '').toLowerCase().replace(/\s+/g, ' ');
 
       // Primary check: Roll match
       if (normRoll && (sRollClean === normRoll || (sGuClean && sGuClean === normRoll))) {
@@ -820,7 +1013,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     // Check course compatibility
     const studentProgClean = matched.courseProgram.toLowerCase();
     const studentSelectiveClean = matched.selectiveCourse.toLowerCase();
-    const selectedProgClean = courseProgram.toLowerCase();
+    const selectedProgClean = normCourse;
 
     const isMajor = selectedProgClean.includes('major') || selectedProgClean.includes('honours');
     const isMinor = selectedProgClean.includes('minor');
@@ -845,7 +1038,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       return {
         isEligible: false,
         matchedStudent: matched,
-        reason: `Course mismatch: Official department records show you are enrolled in "${matched.courseProgram}" (${matched.selectiveCourse}), but you selected "${courseProgram}".`
+        reason: `Course mismatch: Official department records show you are enrolled in "${matched.courseProgram}" (${matched.selectiveCourse}), but you selected "${courseProgram || 'unknown'}".`
       };
     }
 
@@ -858,7 +1051,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   // Portal Registered Student Profiles
   const addRegisteredStudentProfile = (profile: StudentProfile) => {
     setRegisteredStudentProfiles((prev) => {
-      const updated = [profile, ...prev.filter((p) => p.id !== profile.id && p.rollNo.toLowerCase() !== profile.rollNo.toLowerCase())];
+      const updated = [profile, ...prev.filter((p) => p.id !== profile.id && (p.rollNo || '').toLowerCase() !== (profile.rollNo || '').toLowerCase())];
       persist({ registeredStudentProfiles: updated });
       return updated;
     });
@@ -1344,6 +1537,9 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         addAdminAccount,
         updateAdminAccount,
         deleteAdminAccount,
+        changePassword,
+        resetAdminPassword,
+        generatePasswordResetToken,
         submitAdminRegistrationRequest,
         approveAdminRegistrationRequest,
         rejectAdminRegistrationRequest,
@@ -1358,6 +1554,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         addDepartmentStudent,
         updateDepartmentStudent,
         deleteDepartmentStudent,
+        deleteMultipleDepartmentStudents,
         bulkImportDepartmentStudents,
         verifyStudentEligibility,
 

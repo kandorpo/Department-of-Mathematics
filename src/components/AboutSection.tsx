@@ -11,13 +11,83 @@ import {
   Laptop,
   CheckCircle,
   Quote,
-  Library
+  Library,
+  Edit3,
+  Plus,
+  Trash2,
+  Save,
+  Lock
 } from 'lucide-react';
 import { useDepartmentData } from '../context/DataContext';
 
 export const AboutSection: React.FC = () => {
-  const { departmentInfo: DEPARTMENT_INFO, faculty } = useDepartmentData();
+  const {
+    departmentInfo: DEPARTMENT_INFO,
+    faculty,
+    updateDepartmentInfo,
+    isAdminLoggedIn,
+    setIsAdminOpen,
+    loginAdmin
+  } = useDepartmentData();
+
   const [modalOpen, setModalOpen] = useState(false);
+  const [missionModalOpen, setMissionModalOpen] = useState(false);
+  const [editMissionList, setEditMissionList] = useState<string[]>([]);
+  const [editVision, setEditVision] = useState('');
+  const [editSuccessToast, setEditSuccessToast] = useState(false);
+
+  // Quick auth state if user tries to edit while logged out
+  const [quickUsername, setQuickUsername] = useState('');
+  const [quickPassword, setQuickPassword] = useState('');
+  const [quickAuthError, setQuickAuthError] = useState('');
+
+  const missionList: string[] = Array.isArray(DEPARTMENT_INFO.mission)
+    ? DEPARTMENT_INFO.mission
+    : typeof DEPARTMENT_INFO.mission === 'string'
+    ? (DEPARTMENT_INFO.mission as string).split('\n').map(s => s.trim()).filter(Boolean)
+    : [
+        'Impart comprehensive and rigorous mathematical education bridging foundational theory and computational applications.',
+        'Cultivate critical thinking, problem-solving skills, and a spirit of mathematical inquiry and research.',
+        'Organize national seminars, Olympiads, workshops, and mathematical awareness camps for the student community.',
+        'Prepare students for competitive careers in higher research, academia, data science, banking, and public service.'
+      ];
+
+  const handleOpenMissionEdit = () => {
+    setEditMissionList([...missionList]);
+    setEditVision(DEPARTMENT_INFO.vision || '');
+    setQuickAuthError('');
+    setMissionModalOpen(true);
+  };
+
+  const handleSaveMission = (e: React.FormEvent) => {
+    e.preventDefault();
+    const cleanMission = editMissionList.map(m => m.trim()).filter(Boolean);
+    updateDepartmentInfo({
+      mission: cleanMission.length > 0 ? cleanMission : missionList,
+      vision: editVision.trim() || DEPARTMENT_INFO.vision
+    });
+    setEditSuccessToast(true);
+    setTimeout(() => {
+      setEditSuccessToast(false);
+      setMissionModalOpen(false);
+    }, 1200);
+  };
+
+  const handleQuickLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setQuickAuthError('');
+    if (!quickUsername || !quickPassword) {
+      setQuickAuthError('Please enter username and password.');
+      return;
+    }
+    const success = await loginAdmin(quickUsername, quickPassword);
+    if (success) {
+      setQuickUsername('');
+      setQuickPassword('');
+    } else {
+      setQuickAuthError('Invalid credentials. Please try again.');
+    }
+  };
 
   return (
     <section id="about" className="py-20 bg-slate-50 relative border-b border-slate-200/80">
@@ -72,7 +142,7 @@ export const AboutSection: React.FC = () => {
               <div className="absolute bottom-4 left-4 right-4 text-white">
                 <div className="flex items-center gap-2 text-xs font-medium text-amber-300 mb-1">
                   <Library className="w-4 h-4" />
-                  <span>Science Block • Dudhnoi College</span>
+                  <span>Science Block • {DEPARTMENT_INFO.college}</span>
                 </div>
                 <h4 className="text-base font-bold">
                   Modern Pedagogical & Computing Infrastructure
@@ -139,9 +209,19 @@ export const AboutSection: React.FC = () => {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               
               {/* Vision Card */}
-              <div className="p-5 rounded-xl bg-blue-900 text-white shadow-sm space-y-2.5">
-                <div className="w-8 h-8 rounded-lg bg-blue-800 flex items-center justify-center text-amber-400">
-                  <Eye className="w-4 h-4" />
+              <div className="p-5 rounded-xl bg-blue-900 text-white shadow-sm space-y-2.5 relative group">
+                <div className="flex items-center justify-between">
+                  <div className="w-8 h-8 rounded-lg bg-blue-800 flex items-center justify-center text-amber-400">
+                    <Eye className="w-4 h-4" />
+                  </div>
+                  <button
+                    onClick={handleOpenMissionEdit}
+                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-blue-800/80 hover:bg-blue-700 text-amber-300 hover:text-white text-[11px] font-semibold transition-all border border-blue-700/60 shadow-2xs cursor-pointer"
+                    title="Edit Vision & Mission"
+                  >
+                    <Edit3 className="w-3 h-3" />
+                    <span>Edit</span>
+                  </button>
                 </div>
                 <h4 className="text-sm font-bold text-white tracking-wide uppercase">
                   Our Vision
@@ -152,45 +232,35 @@ export const AboutSection: React.FC = () => {
               </div>
 
               {/* Mission Card */}
-              <div className="p-5 rounded-xl bg-slate-900 text-white shadow-sm space-y-2.5">
-                <div className="w-8 h-8 rounded-lg bg-slate-800 flex items-center justify-center text-sky-400">
-                  <Target className="w-4 h-4" />
+              <div className="p-5 rounded-xl bg-slate-900 text-white shadow-sm space-y-2.5 relative group">
+                <div className="flex items-center justify-between">
+                  <div className="w-8 h-8 rounded-lg bg-slate-800 flex items-center justify-center text-sky-400">
+                    <Target className="w-4 h-4" />
+                  </div>
+                  <button
+                    onClick={handleOpenMissionEdit}
+                    className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-slate-800 hover:bg-slate-700 text-sky-300 hover:text-white text-[11px] font-semibold transition-all border border-slate-700 shadow-2xs cursor-pointer"
+                    title="Edit Our Mission"
+                  >
+                    <Edit3 className="w-3 h-3" />
+                    <span>Edit Mission</span>
+                  </button>
                 </div>
                 <h4 className="text-sm font-bold text-white tracking-wide uppercase">
                   Our Mission
                 </h4>
                 <ul className="text-xs text-slate-300 space-y-1.5 list-disc list-inside">
-                  <li>Impart comprehensive and rigorous mathematical training.</li>
-                  <li>Promote research culture & Olympiad problem-solving.</li>
-                  <li>Bridge abstract mathematics with scientific computing.</li>
+                  {missionList.map((item, idx) => (
+                    <li key={idx} className="leading-relaxed">
+                      <span>{item}</span>
+                    </li>
+                  ))}
                 </ul>
               </div>
 
             </div>
 
-            {/* Core Values 2x2 Grid */}
-            <div className="p-6 rounded-2xl bg-white border border-slate-200 shadow-sm space-y-4">
-              <div className="flex items-center gap-2">
-                <ShieldCheck className="w-5 h-5 text-amber-600" />
-                <h4 className="text-sm font-bold text-slate-900 uppercase tracking-wider">
-                  Core Values
-                </h4>
-              </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                {DEPARTMENT_INFO.coreValues.map((val, idx) => (
-                  <div key={idx} className="p-3 rounded-lg bg-slate-50 border border-slate-200/80 space-y-1">
-                    <div className="flex items-center gap-1.5">
-                      <CheckCircle className="w-3.5 h-3.5 text-blue-700 shrink-0" />
-                      <span className="text-xs font-bold text-slate-800">{val.title}</span>
-                    </div>
-                    <p className="text-[11px] text-slate-500 leading-relaxed pl-5">
-                      {val.desc}
-                    </p>
-                  </div>
-                ))}
-              </div>
-            </div>
 
           </div>
 
@@ -223,7 +293,7 @@ export const AboutSection: React.FC = () => {
             {/* HOD Full Note */}
             <div className="p-5 rounded-xl bg-blue-50/70 border border-blue-200 space-y-2">
               <h4 className="text-sm font-bold text-blue-950">
-                Message from the Head of the Department
+                {DEPARTMENT_INFO.hodMessageHeading || "Message from the Head of the Department"}
               </h4>
               <p className="text-xs text-slate-700 leading-relaxed">
                 {DEPARTMENT_INFO.hodMessage}
@@ -257,7 +327,7 @@ export const AboutSection: React.FC = () => {
             <div className="p-4 rounded-xl bg-slate-100 text-xs text-slate-700 space-y-2 border border-slate-200">
               <div className="font-bold text-slate-900">Affiliation & Accreditation</div>
               <p>
-                Dudhnoi College is affiliated to Gauhati University, approved under Section 2(f) and 12(B) of the UGC Act, 1956, and accredited Grade A by NAAC. The Department of Mathematics strictly implements the FYUGP curriculum framework prescribed by Gauhati University and Assam Higher Education Council.
+                {DEPARTMENT_INFO.college} is affiliated to Gauhati University, approved under Section 2(f) and 12(B) of the UGC Act, 1956, and accredited Grade A by NAAC. The Department of Mathematics strictly implements the FYUGP curriculum framework prescribed by Gauhati University and Assam Higher Education Council.
               </p>
             </div>
 
@@ -269,6 +339,201 @@ export const AboutSection: React.FC = () => {
                 Close Window
               </button>
             </div>
+
+          </div>
+        </div>
+      )}
+
+      {/* On-Page Direct Mission & Vision Editor Modal */}
+      {missionModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/75 backdrop-blur-xs animate-in fade-in duration-200">
+          <div className="bg-white rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-2xl border border-slate-200 p-6 sm:p-7 space-y-5">
+            
+            {/* Header */}
+            <div className="flex items-center justify-between border-b border-slate-200 pb-3.5">
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-xl bg-sky-100 flex items-center justify-center text-sky-700">
+                  <Target className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-base sm:text-lg font-bold text-slate-900 font-heading">
+                    Edit Department Mission & Vision
+                  </h3>
+                  <p className="text-xs text-slate-500">
+                    Direct live editing for the website's Our Mission & Vision sections.
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setMissionModalOpen(false)}
+                className="p-2 text-slate-400 hover:text-slate-700 rounded-lg hover:bg-slate-100 cursor-pointer transition-colors"
+                aria-label="Close"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* If Admin is NOT logged in: Quick login screen */}
+            {!isAdminLoggedIn ? (
+              <div className="space-y-4 py-2">
+                <div className="p-4 bg-amber-50 border border-amber-200 rounded-xl flex items-start gap-3 text-xs text-amber-900">
+                  <Lock className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+                  <div>
+                    <p className="font-bold">Administrator Login Required</p>
+                    <p className="text-amber-700 mt-0.5">
+                      Please enter your faculty or departmental administrator credentials to save updates to the live website.
+                    </p>
+                  </div>
+                </div>
+
+                <form onSubmit={handleQuickLogin} className="space-y-3 text-xs">
+                  {quickAuthError && (
+                    <div className="p-2.5 bg-red-50 text-red-700 border border-red-200 rounded-lg text-xs font-medium">
+                      {quickAuthError}
+                    </div>
+                  )}
+                  <div>
+                    <label className="block font-bold text-slate-700 mb-1">Username or Email</label>
+                    <input
+                      type="text"
+                      value={quickUsername}
+                      onChange={(e) => setQuickUsername(e.target.value)}
+                      placeholder="e.g. admin or hod@dudhnoicollege.ac.in"
+                      className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl outline-none focus:bg-white focus:ring-2 focus:ring-blue-900"
+                    />
+                  </div>
+                  <div>
+                    <label className="block font-bold text-slate-700 mb-1">Password</label>
+                    <input
+                      type="password"
+                      value={quickPassword}
+                      onChange={(e) => setQuickPassword(e.target.value)}
+                      placeholder="••••••••"
+                      className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl outline-none focus:bg-white focus:ring-2 focus:ring-blue-900"
+                    />
+                  </div>
+
+                  <div className="flex items-center justify-between pt-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setMissionModalOpen(false);
+                        setIsAdminOpen(true);
+                      }}
+                      className="text-xs font-semibold text-blue-900 hover:underline cursor-pointer"
+                    >
+                      Open Full Admin CMS
+                    </button>
+                    <button
+                      type="submit"
+                      className="px-5 py-2.5 bg-blue-900 hover:bg-blue-950 text-white font-bold rounded-xl shadow-xs transition-colors cursor-pointer"
+                    >
+                      Unlock & Continue Editing
+                    </button>
+                  </div>
+                </form>
+              </div>
+            ) : (
+              /* If Admin IS logged in: Form for editing Mission & Vision */
+              <form onSubmit={handleSaveMission} className="space-y-5 text-xs">
+                {editSuccessToast && (
+                  <div className="p-3 bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-xl flex items-center gap-2 font-bold animate-in fade-in">
+                    <CheckCircle className="w-4 h-4 text-emerald-600 shrink-0" />
+                    <span>Mission & Vision updated and saved to the live website!</span>
+                  </div>
+                )}
+
+                {/* Mission Section Points */}
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <label className="block font-bold text-slate-900 text-xs uppercase tracking-wider flex items-center gap-1.5">
+                      <Target className="w-4 h-4 text-sky-600" />
+                      <span>Our Mission Statements ({editMissionList.length})</span>
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => setEditMissionList([...editMissionList, 'New department mission point...'])}
+                      className="inline-flex items-center gap-1 px-3 py-1.5 bg-sky-50 hover:bg-sky-100 text-sky-800 border border-sky-200 rounded-lg text-xs font-bold transition-colors cursor-pointer"
+                    >
+                      <Plus className="w-3.5 h-3.5" />
+                      <span>Add Mission Point</span>
+                    </button>
+                  </div>
+
+                  <div className="space-y-2.5">
+                    {editMissionList.map((item, idx) => (
+                      <div key={idx} className="flex items-start gap-2 bg-slate-50 p-2.5 rounded-xl border border-slate-200 group">
+                        <span className="w-5 h-5 rounded-full bg-slate-200 text-slate-700 font-bold text-[10px] flex items-center justify-center shrink-0 mt-1">
+                          {idx + 1}
+                        </span>
+                        <textarea
+                          rows={2}
+                          value={item}
+                          onChange={(e) => {
+                            const updated = [...editMissionList];
+                            updated[idx] = e.target.value;
+                            setEditMissionList(updated);
+                          }}
+                          className="flex-1 px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-900 text-xs"
+                          placeholder={`Mission objective ${idx + 1}...`}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const updated = editMissionList.filter((_, i) => i !== idx);
+                            setEditMissionList(updated);
+                          }}
+                          className="p-1.5 text-slate-400 hover:text-red-600 rounded-lg cursor-pointer transition-colors mt-1"
+                          title="Delete this point"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    ))}
+
+                    {editMissionList.length === 0 && (
+                      <div className="p-4 text-center border border-dashed border-slate-200 rounded-xl text-slate-400 text-xs">
+                        No mission points defined. Click "Add Mission Point" to add your first statement.
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Vision Statement */}
+                <div className="space-y-1.5 border-t border-slate-200 pt-4">
+                  <label className="block font-bold text-slate-900 text-xs uppercase tracking-wider flex items-center gap-1.5">
+                    <Eye className="w-4 h-4 text-blue-800" />
+                    <span>Our Vision Statement</span>
+                  </label>
+                  <textarea
+                    rows={3}
+                    value={editVision}
+                    onChange={(e) => setEditVision(e.target.value)}
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl outline-none focus:bg-white focus:ring-2 focus:ring-blue-900 text-xs"
+                    placeholder="To emerge as a premier center of mathematical education..."
+                  />
+                </div>
+
+                {/* Footer Controls */}
+                <div className="flex items-center justify-between border-t border-slate-200 pt-4">
+                  <button
+                    type="button"
+                    onClick={() => setMissionModalOpen(false)}
+                    className="px-4 py-2 text-slate-600 hover:text-slate-900 font-semibold cursor-pointer"
+                  >
+                    Cancel
+                  </button>
+
+                  <button
+                    type="submit"
+                    className="px-5 py-2 bg-blue-900 hover:bg-blue-950 text-white font-bold rounded-xl flex items-center gap-1.5 shadow-sm transition-colors cursor-pointer"
+                  >
+                    <Save className="w-4 h-4 text-amber-400" />
+                    <span>Save Mission & Vision</span>
+                  </button>
+                </div>
+              </form>
+            )}
 
           </div>
         </div>

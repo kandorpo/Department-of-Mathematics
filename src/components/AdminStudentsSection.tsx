@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useRef } from 'react';
 import {
   Users,
+  UserPlus,
   Search,
   Plus,
   Edit3,
@@ -45,6 +46,7 @@ interface AdminStudentsSectionProps {
   onAddStudent: (student: DepartmentStudent) => void;
   onUpdateStudent: (student: DepartmentStudent) => void;
   onDeleteStudent: (id: string) => void;
+  onBulkDeleteStudents?: (ids: string[]) => void;
   onBulkImport: (students: DepartmentStudent[]) => void;
   showStatus: (msg: string) => void;
 }
@@ -122,12 +124,33 @@ export const PRESET_STATUSES: DepartmentStudent['status'][] = [
   'Suspended'
 ];
 
+export const PRESET_DEPARTMENTS = [
+  'Mathematics',
+  'Physics',
+  'Chemistry',
+  'Computer Science',
+  'Statistics',
+  'Botany',
+  'Zoology',
+  'English',
+  'Assamese',
+  'Geography',
+  'Economics',
+  'Political Science',
+  'History',
+  'Philosophy',
+  'Anthropology',
+  'Education',
+  'B.Com (Commerce)'
+];
+
 export const AdminStudentsSection: React.FC<AdminStudentsSectionProps> = ({
   students,
   faculty,
   onAddStudent,
   onUpdateStudent,
   onDeleteStudent,
+  onBulkDeleteStudents,
   onBulkImport,
   showStatus
 }) => {
@@ -136,6 +159,7 @@ export const AdminStudentsSection: React.FC<AdminStudentsSectionProps> = ({
   const [selectedProgram, setSelectedProgram] = useState<string>('all');
   const [selectedSemester, setSelectedSemester] = useState<string>('all');
   const [selectedStatusFilter, setSelectedStatusFilter] = useState<string>('all');
+  const [selectedDepartment, setSelectedDepartment] = useState<string>('all');
   const [viewMode, setViewMode] = useState<'grouped' | 'table'>('grouped');
 
   // Selected Student IDs for Batch Operations
@@ -162,6 +186,7 @@ export const AdminStudentsSection: React.FC<AdminStudentsSectionProps> = ({
   const [formClassSection, setFormClassSection] = useState('');
   const [formGuRegNo, setFormGuRegNo] = useState('');
   const [formCourseProgram, setFormCourseProgram] = useState<DepartmentStudent['courseProgram']>('B.Sc. Mathematics (Honours/Major)');
+  const [formSelectiveCourse, setFormSelectiveCourse] = useState<string>(PRESET_SELECTIVE_COURSES[0]);
   const [formSemester, setFormSemester] = useState('1st Semester');
   const [formCustomSemester, setFormCustomSemester] = useState('');
   const [formBatch, setFormBatch] = useState('2024 - 2028');
@@ -176,17 +201,12 @@ export const AdminStudentsSection: React.FC<AdminStudentsSectionProps> = ({
   const [formBloodGroup, setFormBloodGroup] = useState('O+');
   const [formAddress, setFormAddress] = useState('');
   const [formNotes, setFormNotes] = useState('');
+  const [formDepartment, setFormDepartment] = useState('Mathematics');
   const [formError, setFormError] = useState('');
 
   // Quick Inline Editing State in Table View
   const [inlineEditingId, setInlineEditingId] = useState<string | null>(null);
   const [inlineData, setInlineData] = useState<Partial<DepartmentStudent>>({});
-
-  // Simulator / Test Verification Tool state
-  const [testName, setTestName] = useState('');
-  const [testRoll, setTestRoll] = useState('');
-  const [testCourse, setTestCourse] = useState('B.Sc. Mathematics (Honours/Major)');
-  const [testResult, setTestResult] = useState<{ evaluated: boolean; eligible: boolean; message: string; matchedStudent?: DepartmentStudent } | null>(null);
 
   // Open Add Modal
   const handleOpenAdd = () => {
@@ -196,6 +216,7 @@ export const AdminStudentsSection: React.FC<AdminStudentsSectionProps> = ({
     setFormClassSection('B.Sc. 1st Year (Section A)');
     setFormGuRegNo(`GU${Math.floor(24000000 + Math.random() * 999999)}`);
     setFormCourseProgram('B.Sc. Mathematics (Honours/Major)');
+    setFormSelectiveCourse(PRESET_SELECTIVE_COURSES[0]);
     setFormSemester('B.Sc. 1st Semester (Major)');
     setFormCustomSemester('');
     setFormBatch('2024 - 2028');
@@ -210,6 +231,7 @@ export const AdminStudentsSection: React.FC<AdminStudentsSectionProps> = ({
     setFormBloodGroup('O+');
     setFormAddress('Dudhnoi, Goalpara, Assam');
     setFormNotes('Authorized regular department student.');
+    setFormDepartment('Mathematics');
     setFormError('');
     setIsModalOpen(true);
   };
@@ -222,6 +244,7 @@ export const AdminStudentsSection: React.FC<AdminStudentsSectionProps> = ({
     setFormClassSection(stu.classSection || 'B.Sc. Mathematics Class');
     setFormGuRegNo(stu.guRegNo || '');
     setFormCourseProgram(stu.courseProgram);
+    setFormSelectiveCourse(stu.selectiveCourse || PRESET_SELECTIVE_COURSES[0]);
 
     if (PRESET_SEMESTERS.includes(stu.semester)) {
       setFormSemester(stu.semester);
@@ -231,8 +254,8 @@ export const AdminStudentsSection: React.FC<AdminStudentsSectionProps> = ({
       setFormCustomSemester(stu.semester);
     }
 
-    setFormBatch(stu.batch);
-    setFormEmail(stu.email);
+    setFormBatch(stu.batch || '2024 - 2028');
+    setFormEmail(stu.email || '');
     setFormPhone(stu.phone || '');
     setFormMentorName(stu.mentorName || faculty[0]?.name || 'Dr. Bidyut Kalita (HOD)');
     setFormCgpa(stu.cgpa !== undefined ? stu.cgpa.toString() : '8.50');
@@ -243,6 +266,7 @@ export const AdminStudentsSection: React.FC<AdminStudentsSectionProps> = ({
     setFormBloodGroup(stu.bloodGroup || 'O+');
     setFormAddress(stu.address || '');
     setFormNotes(stu.notes || '');
+    setFormDepartment(stu.department || 'Mathematics');
     setFormError('');
     setIsModalOpen(true);
   };
@@ -265,7 +289,7 @@ export const AdminStudentsSection: React.FC<AdminStudentsSectionProps> = ({
     // Check duplicate roll number in other students
     const duplicate = students.find(
       (s) =>
-        s.rollNo.toLowerCase() === formRollNo.trim().toLowerCase() &&
+        (s.rollNo || '').toLowerCase() === formRollNo.trim().toLowerCase() &&
         (!editingStudent || s.id !== editingStudent.id)
     );
 
@@ -278,23 +302,24 @@ export const AdminStudentsSection: React.FC<AdminStudentsSectionProps> = ({
       id: editingStudent ? editingStudent.id : `dept-stu-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
       fullName: formFullName.trim(),
       rollNo: formRollNo.trim(),
-      classSection: undefined,
+      classSection: formClassSection.trim() || undefined,
       guRegNo: formGuRegNo.trim() || undefined,
       courseProgram: formCourseProgram,
-      selectiveCourse: 'Not Applicable',
+      selectiveCourse: formSelectiveCourse.trim() || PRESET_SELECTIVE_COURSES[0],
       semester: finalSemester,
-      batch: undefined,
-      email: undefined,
+      batch: formBatch.trim() || undefined,
+      email: formEmail.trim() || undefined,
       phone: formPhone.trim() || undefined,
-      mentorName: undefined,
+      mentorName: formMentorName.trim() || undefined,
       cgpa: formCgpa ? parseFloat(formCgpa) : undefined,
       status: formStatus,
       admissionYear: formAdmissionYear.trim() || undefined,
-      dob: undefined,
-      fatherName: undefined,
-      bloodGroup: undefined,
-      address: undefined,
-      notes: undefined
+      dob: formDob.trim() || undefined,
+      fatherName: formFatherName.trim() || undefined,
+      bloodGroup: formBloodGroup.trim() || undefined,
+      address: formAddress.trim() || undefined,
+      notes: formNotes.trim() || undefined,
+      department: formDepartment || 'Mathematics'
     };
 
     if (editingStudent) {
@@ -302,6 +327,13 @@ export const AdminStudentsSection: React.FC<AdminStudentsSectionProps> = ({
       showStatus(`Student "${studentData.fullName}" (Roll: ${studentData.rollNo}) updated successfully.`);
     } else {
       onAddStudent(studentData);
+      // Reset filter dropdowns so the new student is immediately shown
+      setSelectedCategory('all');
+      setSelectedProgram('all');
+      setSelectedSemester('all');
+      setSelectedStatusFilter('all');
+      setSelectedDepartment('all');
+      setSearchQuery('');
       showStatus(`Student "${studentData.fullName}" added to authorized department roster.`);
     }
 
@@ -357,7 +389,11 @@ export const AdminStudentsSection: React.FC<AdminStudentsSectionProps> = ({
   // Bulk Delete
   const handleBulkDelete = () => {
     if (selectedIds.length === 0) return;
-    selectedIds.forEach((id) => onDeleteStudent(id));
+    if (onBulkDeleteStudents) {
+      onBulkDeleteStudents(selectedIds);
+    } else {
+      selectedIds.forEach((id) => onDeleteStudent(id));
+    }
     showStatus(`Removed ${selectedIds.length} student(s) from roster.`);
     setSelectedIds([]);
   };
@@ -475,7 +511,33 @@ export const AdminStudentsSection: React.FC<AdminStudentsSectionProps> = ({
     return Array.from(set);
   }, [students]);
 
-  // Grouped students by selective course
+  // Filtered students
+  const filteredStudents = useMemo(() => {
+    return students.filter((s) => {
+      const q = searchQuery.toLowerCase().trim();
+      const matchesSearch =
+        !q ||
+        (s.fullName || '').toLowerCase().includes(q) ||
+        (s.rollNo || '').toLowerCase().includes(q) ||
+        (s.classSection || '').toLowerCase().includes(q) ||
+        (s.guRegNo || '').toLowerCase().includes(q) ||
+        (s.email || '').toLowerCase().includes(q) ||
+        (s.selectiveCourse || '').toLowerCase().includes(q) ||
+        (s.semester || '').toLowerCase().includes(q) ||
+        (s.phone || '').toLowerCase().includes(q) ||
+        (s.mentorName || '').toLowerCase().includes(q);
+
+      const matchesCat = selectedCategory === 'all' || s.selectiveCourse === selectedCategory;
+      const matchesProgram = selectedProgram === 'all' || s.courseProgram === selectedProgram;
+      const matchesSemester = selectedSemester === 'all' || s.semester === selectedSemester;
+      const matchesStatus = selectedStatusFilter === 'all' || s.status === selectedStatusFilter;
+      const matchesDepartment = selectedDepartment === 'all' || (s.department || 'Mathematics') === selectedDepartment;
+
+      return matchesSearch && matchesCat && matchesProgram && matchesSemester && matchesStatus && matchesDepartment;
+    });
+  }, [students, searchQuery, selectedCategory, selectedProgram, selectedSemester, selectedStatusFilter, selectedDepartment]);
+
+  // Grouped students by selective course derived from filteredStudents
   const groupedBySelective = useMemo(() => {
     const map: Record<string, DepartmentStudent[]> = {};
 
@@ -483,112 +545,14 @@ export const AdminStudentsSection: React.FC<AdminStudentsSectionProps> = ({
       map[c] = [];
     });
 
-    students.forEach((s) => {
+    filteredStudents.forEach((s) => {
       const cat = s.selectiveCourse || 'Unassigned';
       if (!map[cat]) map[cat] = [];
       map[cat].push(s);
     });
 
     return map;
-  }, [students, allSelectiveCourses]);
-
-  // Filtered students
-  const filteredStudents = useMemo(() => {
-    return students.filter((s) => {
-      const q = searchQuery.toLowerCase().trim();
-      const matchesSearch =
-        !q ||
-        s.fullName.toLowerCase().includes(q) ||
-        s.rollNo.toLowerCase().includes(q) ||
-        (s.classSection && s.classSection.toLowerCase().includes(q)) ||
-        (s.guRegNo && s.guRegNo.toLowerCase().includes(q)) ||
-        s.email.toLowerCase().includes(q) ||
-        s.selectiveCourse.toLowerCase().includes(q) ||
-        s.semester.toLowerCase().includes(q) ||
-        (s.phone && s.phone.toLowerCase().includes(q)) ||
-        (s.mentorName && s.mentorName.toLowerCase().includes(q));
-
-      const matchesCat = selectedCategory === 'all' || s.selectiveCourse === selectedCategory;
-      const matchesProgram = selectedProgram === 'all' || s.courseProgram === selectedProgram;
-      const matchesSemester = selectedSemester === 'all' || s.semester === selectedSemester;
-      const matchesStatus = selectedStatusFilter === 'all' || s.status === selectedStatusFilter;
-
-      return matchesSearch && matchesCat && matchesProgram && matchesSemester && matchesStatus;
-    });
-  }, [students, searchQuery, selectedCategory, selectedProgram, selectedSemester, selectedStatusFilter]);
-
-  // Test registration verification simulator
-  const handleRunVerificationTest = (e: React.FormEvent) => {
-    e.preventDefault();
-    const qName = testName.trim().toLowerCase().replace(/\s+/g, ' ');
-    const qRoll = testRoll.trim().toLowerCase().replace(/[^a-z0-9]/g, '');
-
-    if (!qName && !qRoll) {
-      setTestResult({
-        evaluated: true,
-        eligible: false,
-        message: 'Please provide at least a Name or Roll Number to simulate registration verification.'
-      });
-      return;
-    }
-
-    const matched = students.find((s) => {
-      const sRollClean = s.rollNo.toLowerCase().replace(/[^a-z0-9]/g, '');
-      const sGuClean = s.guRegNo ? s.guRegNo.toLowerCase().replace(/[^a-z0-9]/g, '') : '';
-      const sNameClean = s.fullName.toLowerCase().replace(/\s+/g, ' ');
-
-      const rollMatch = qRoll && (sRollClean === qRoll || sGuClean === qRoll);
-      const nameMatch = qName && (sNameClean === qName || sNameClean.includes(qName) || qName.includes(sNameClean));
-
-      return rollMatch || (nameMatch && (sRollClean.includes(qRoll) || qRoll.includes(sRollClean)));
-    });
-
-    if (!matched) {
-      setTestResult({
-        evaluated: true,
-        eligible: false,
-        message: `YOU ARE NOT A STUDENT OF OUR DEPARTMENT: No authorized student admission record matches "${testName}" with Roll "${testRoll || 'N/A'}" in the Department of Mathematics roster.`
-      });
-      return;
-    }
-
-    // Check course
-    const sProgClean = matched.courseProgram.toLowerCase();
-    const tProgClean = testCourse.toLowerCase();
-
-    const isMajor = tProgClean.includes('major') || tProgClean.includes('honours');
-    const isMinor = tProgClean.includes('minor');
-    const isMsc = tProgClean.includes('m.sc') || tProgClean.includes('msc');
-
-    const studentIsMajor = sProgClean.includes('major') || sProgClean.includes('honours');
-    const studentIsMinor = sProgClean.includes('minor');
-    const studentIsMsc = sProgClean.includes('m.sc') || sProgClean.includes('msc');
-
-    const courseMatched =
-      sProgClean === tProgClean ||
-      (isMajor && studentIsMajor) ||
-      (isMinor && studentIsMinor) ||
-      (isMsc && studentIsMsc) ||
-      sProgClean.includes(tProgClean) ||
-      tProgClean.includes(sProgClean);
-
-    if (!courseMatched) {
-      setTestResult({
-        evaluated: true,
-        eligible: false,
-        matchedStudent: matched,
-        message: `YOU ARE NOT A STUDENT OF OUR DEPARTMENT: Selected course "${testCourse}" does not match your officially assigned department curriculum "${matched.courseProgram}" (${matched.selectiveCourse}).`
-      });
-      return;
-    }
-
-    setTestResult({
-      evaluated: true,
-      eligible: true,
-      matchedStudent: matched,
-      message: `ELIGIBLE FOR REGISTRATION: Validated against Department Roster as "${matched.fullName}" (${matched.rollNo}), enrolled in ${matched.courseProgram} - Class: ${matched.classSection || 'N/A'} - Selective: ${matched.selectiveCourse}.`
-    });
-  };
+  }, [filteredStudents, allSelectiveCourses]);
 
   // Export Roster as CSV
   const handleExportCsv = () => {
@@ -739,108 +703,6 @@ export const AdminStudentsSection: React.FC<AdminStudentsSectionProps> = ({
         </div>
       </div>
 
-      {/* Interactive Registration Test Simulator */}
-      <div className="p-4.5 rounded-2xl bg-white border border-slate-200 shadow-xs space-y-3.5">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <div className="p-1.5 bg-blue-100 text-blue-900 rounded-lg">
-              <Sparkles className="w-4 h-4" />
-            </div>
-            <div>
-              <h4 className="text-xs font-bold text-slate-900">Student Portal Registration Validator & Simulator</h4>
-              <p className="text-[11px] text-slate-500">Test how the verification gatekeeper evaluates any student credentials</p>
-            </div>
-          </div>
-          {testResult && (
-            <button
-              onClick={() => setTestResult(null)}
-              className="text-[11px] text-slate-400 hover:text-slate-700 underline cursor-pointer"
-            >
-              Clear Result
-            </button>
-          )}
-        </div>
-
-        <form onSubmit={handleRunVerificationTest} className="grid grid-cols-1 sm:grid-cols-4 gap-2.5 text-xs">
-          <div>
-            <label className="block text-[11px] font-semibold text-slate-600 mb-1">Student Full Name</label>
-            <input
-              type="text"
-              placeholder="e.g. Bhaskar Jyoti Nath"
-              value={testName}
-              onChange={(e) => setTestName(e.target.value)}
-              className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-900 focus:bg-white text-xs"
-            />
-          </div>
-
-          <div>
-            <label className="block text-[11px] font-semibold text-slate-600 mb-1">Class Roll / GU Roll</label>
-            <input
-              type="text"
-              placeholder="e.g. US-241-102-0055"
-              value={testRoll}
-              onChange={(e) => setTestRoll(e.target.value)}
-              className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-900 focus:bg-white text-xs"
-            />
-          </div>
-
-          <div>
-            <label className="block text-[11px] font-semibold text-slate-600 mb-1">Enrolled Course Selection</label>
-            <select
-              value={testCourse}
-              onChange={(e) => setTestCourse(e.target.value)}
-              className="w-full px-2.5 py-2 bg-slate-50 border border-slate-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-900 focus:bg-white text-xs"
-            >
-              {PRESET_PROGRAMS.map((prog) => (
-                <option key={prog} value={prog}>
-                  {prog}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div className="flex items-end">
-            <button
-              type="submit"
-              className="w-full py-2 bg-blue-900 hover:bg-blue-950 text-white font-bold rounded-lg shadow-2xs transition-colors flex items-center justify-center gap-1.5 text-xs cursor-pointer h-[34px]"
-            >
-              <UserCheck className="w-3.5 h-3.5" />
-              <span>Simulate Validation</span>
-            </button>
-          </div>
-        </form>
-
-        {testResult && (
-          <div
-            className={`p-3.5 rounded-xl border text-xs flex items-start gap-2.5 animate-in fade-in ${
-              testResult.eligible
-                ? 'bg-emerald-50 border-emerald-200 text-emerald-900'
-                : 'bg-red-50 border-red-200 text-red-900'
-            }`}
-          >
-            {testResult.eligible ? (
-              <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0 mt-0.5" />
-            ) : (
-              <ShieldAlert className="w-5 h-5 text-red-600 shrink-0 mt-0.5" />
-            )}
-            <div className="space-y-1">
-              <span className="font-bold text-sm block">
-                {testResult.eligible ? '✅ Validation Passed: Student Authorized' : '🚫 Registration Blocked: NOT AUTHORIZED'}
-              </span>
-              <p className="leading-relaxed">{testResult.message}</p>
-              {testResult.matchedStudent && (
-                <div className="pt-1 text-[11px] text-slate-600 flex flex-wrap gap-x-3">
-                  <span>Enrolled: <strong>{testResult.matchedStudent.courseProgram}</strong></span>
-                  <span>Class: <strong>{testResult.matchedStudent.classSection || 'General'}</strong></span>
-                  <span>Selective: <strong>{testResult.matchedStudent.selectiveCourse}</strong></span>
-                  <span>Mentor: <strong>{testResult.matchedStudent.mentorName}</strong></span>
-                </div>
-              )}
-            </div>
-          </div>
-        )}
-      </div>
-
       {/* Filter and Categorization Bar */}
       <div className="p-4 rounded-2xl bg-white border border-slate-200 shadow-xs space-y-4">
         
@@ -868,6 +730,20 @@ export const AdminStudentsSection: React.FC<AdminStudentsSectionProps> = ({
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
+            {/* Filter by Department */}
+            <select
+              value={selectedDepartment}
+              onChange={(e) => setSelectedDepartment(e.target.value)}
+              className="px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs outline-none focus:ring-2 focus:ring-blue-900 text-slate-700 font-bold text-blue-900"
+            >
+              <option value="all">All Departments</option>
+              {PRESET_DEPARTMENTS.map((dept) => (
+                <option key={dept} value={dept}>
+                  {dept}
+                </option>
+              ))}
+            </select>
+
             {/* Filter by Program */}
             <select
               value={selectedProgram}
@@ -1027,30 +903,10 @@ export const AdminStudentsSection: React.FC<AdminStudentsSectionProps> = ({
           {(Object.entries(groupedBySelective) as [string, DepartmentStudent[]][])
             .filter(([catName, list]) => {
               if (selectedCategory !== 'all' && catName !== selectedCategory) return false;
-              if (list.length === 0 && selectedCategory !== catName) return false;
+              if (list.length === 0) return false;
               return true;
             })
             .map(([catName, list]) => {
-              const displayed = list.filter((s) => {
-                const q = searchQuery.toLowerCase().trim();
-                const matchesSearch =
-                  !q ||
-                  s.fullName.toLowerCase().includes(q) ||
-                  s.rollNo.toLowerCase().includes(q) ||
-                  (s.classSection && s.classSection.toLowerCase().includes(q)) ||
-                  (s.guRegNo && s.guRegNo.toLowerCase().includes(q)) ||
-                  s.email.toLowerCase().includes(q) ||
-                  s.semester.toLowerCase().includes(q);
-
-                const matchesProgram = selectedProgram === 'all' || s.courseProgram === selectedProgram;
-                const matchesSemester = selectedSemester === 'all' || s.semester === selectedSemester;
-                const matchesStatus = selectedStatusFilter === 'all' || s.status === selectedStatusFilter;
-
-                return matchesSearch && matchesProgram && matchesSemester && matchesStatus;
-              });
-
-              if (displayed.length === 0 && searchQuery) return null;
-
               return (
                 <div
                   key={catName}
@@ -1068,7 +924,7 @@ export const AdminStudentsSection: React.FC<AdminStudentsSectionProps> = ({
                             Selective / Elective Track
                           </span>
                           <span className="text-xs font-bold text-slate-500">
-                            {displayed.length} Enrolled Student{displayed.length === 1 ? '' : 's'}
+                            {list.length} Enrolled Student{list.length === 1 ? '' : 's'}
                           </span>
                         </div>
                         <h4 className="text-base font-bold text-slate-900 font-heading">
@@ -1080,94 +936,94 @@ export const AdminStudentsSection: React.FC<AdminStudentsSectionProps> = ({
                   </div>
 
                   {/* Student Cards in Category */}
-                  {displayed.length === 0 ? (
-                    <div className="p-8 text-center text-slate-400 text-xs">
-                      No students found matching your filters in this selective track.
-                    </div>
-                  ) : (
-                    <div className="p-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5">
-                      {displayed.map((stu) => {
-                        const isSelected = selectedIds.includes(stu.id);
-                        return (
-                          <div
-                            key={stu.id}
-                            className={`p-3.5 rounded-xl border transition-all bg-white flex flex-col justify-between space-y-3 group ${
-                              isSelected ? 'border-blue-500 ring-2 ring-blue-500/20 bg-blue-50/20' : 'border-slate-200 hover:border-blue-300 hover:shadow-xs'
-                            }`}
-                          >
-                            <div className="space-y-2">
-                              <div className="flex items-start justify-between gap-2">
-                                <div className="flex items-start gap-2">
-                                  <button
-                                    onClick={() => toggleSelectStudent(stu.id)}
-                                    className="mt-0.5 text-slate-400 hover:text-blue-900 cursor-pointer"
-                                  >
-                                    {isSelected ? (
-                                      <CheckSquare className="w-4 h-4 text-blue-900" />
-                                    ) : (
-                                      <Square className="w-4 h-4 text-slate-300" />
-                                    )}
-                                  </button>
-                                  <div>
-                                    <h5 className="font-bold text-slate-900 text-xs group-hover:text-blue-900 transition-colors">
-                                      {stu.fullName}
-                                    </h5>
-                                    <p className="text-[11px] font-mono text-slate-500 font-medium">
-                                      Roll: <strong className="text-blue-900">{stu.rollNo}</strong>
-                                    </p>
-                                  </div>
-                                </div>
-                                <span
-                                  className={`px-2 py-0.5 rounded text-[10px] font-bold ${
-                                    stu.status === 'Active'
-                                      ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                                      : stu.status === 'Alumni' || stu.status === 'Graduated'
-                                      ? 'bg-purple-50 text-purple-700 border border-purple-200'
-                                      : 'bg-slate-100 text-slate-600'
-                                  }`}
+                  <div className="p-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5">
+                    {list.map((stu) => {
+                      const isSelected = selectedIds.includes(stu.id);
+                      return (
+                        <div
+                          key={stu.id}
+                          className={`p-3.5 rounded-xl border transition-all bg-white flex flex-col justify-between space-y-3 group ${
+                            isSelected ? 'border-blue-500 ring-2 ring-blue-500/20 bg-blue-50/20' : 'border-slate-200 hover:border-blue-300 hover:shadow-xs'
+                          }`}
+                        >
+                          <div className="space-y-2">
+                            <div className="flex items-start justify-between gap-2">
+                              <div className="flex items-start gap-2">
+                                <button
+                                  onClick={() => toggleSelectStudent(stu.id)}
+                                  className="mt-0.5 text-slate-400 hover:text-blue-900 cursor-pointer"
                                 >
-                                  {stu.status}
-                                </span>
-                              </div>
-
-                              <div className="space-y-1 text-[11px] text-slate-600">
-                                <p className="text-slate-800 font-medium truncate">
-                                  🎓 {stu.courseProgram}
-                                </p>
-                                {stu.classSection && (
-                                  <p className="text-slate-700 font-semibold text-[11px] flex items-center gap-1">
-                                    <Building className="w-3 h-3 text-slate-400" />
-                                    <span>Class: {stu.classSection}</span>
-                                  </p>
-                                )}
-                                <p className="text-slate-500 flex items-center justify-between">
-                                  <span>{stu.semester} ({stu.batch})</span>
-                                  {stu.cgpa !== undefined && (
-                                    <span className="font-bold text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded">
-                                      CGPA: {stu.cgpa.toFixed(2)}
-                                    </span>
+                                  {isSelected ? (
+                                    <CheckSquare className="w-4 h-4 text-blue-900" />
+                                  ) : (
+                                    <Square className="w-4 h-4 text-slate-300" />
                                   )}
-                                </p>
-                                {stu.guRegNo && (
-                                  <p className="text-slate-500 text-[10px] font-mono">
-                                    GU Reg: {stu.guRegNo}
+                                </button>
+                                <div>
+                                  <h5 className="font-bold text-slate-900 text-xs group-hover:text-blue-900 transition-colors">
+                                    {stu.fullName}
+                                  </h5>
+                                  <p className="text-[11px] font-mono text-slate-500 font-medium">
+                                    Roll: <strong className="text-blue-900">{stu.rollNo}</strong>
                                   </p>
-                                )}
-                                <p className="text-slate-500 truncate">
-                                  ✉️ {stu.email}
+                                </div>
+                              </div>
+                              <span
+                                className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                                  stu.status === 'Active'
+                                    ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                                    : stu.status === 'Alumni' || stu.status === 'Graduated'
+                                    ? 'bg-purple-50 text-purple-700 border border-purple-200'
+                                    : 'bg-slate-100 text-slate-600'
+                                }`}
+                              >
+                                {stu.status}
+                              </span>
+                            </div>
+
+                            <div className="space-y-1 text-[11px] text-slate-600">
+                              <p className="text-slate-800 font-medium truncate">
+                                🎓 {stu.courseProgram}
+                              </p>
+                              {stu.classSection && (
+                                <p className="text-slate-700 font-semibold text-[11px] flex items-center gap-1">
+                                  <Building className="w-3 h-3 text-slate-400" />
+                                  <span>Class: {stu.classSection}</span>
                                 </p>
-                                {stu.phone && (
-                                  <p className="text-slate-500 text-[10px]">
-                                    📞 {stu.phone}
-                                  </p>
+                              )}
+                              <p className="text-slate-500 flex items-center justify-between">
+                                <span>{stu.semester} ({stu.batch})</span>
+                                {stu.cgpa !== undefined && stu.cgpa !== null && !isNaN(Number(stu.cgpa)) && (
+                                  <span className="font-bold text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded">
+                                    CGPA: {Number(stu.cgpa).toFixed(2)}
+                                  </span>
                                 )}
+                              </p>
+                              {stu.guRegNo && (
+                                <p className="text-slate-500 text-[10px] font-mono">
+                                  GU Reg: {stu.guRegNo}
+                                </p>
+                              )}
+                              <p className="text-slate-500 truncate">
+                                ✉️ {stu.email}
+                              </p>
+                              {stu.phone && (
+                                <p className="text-slate-500 text-[10px]">
+                                  📞 {stu.phone}
+                                </p>
+                              )}
+                              <div className="pt-1 border-t border-slate-100 text-[10px] space-y-0.5">
+                                <p className="text-blue-900 font-semibold">
+                                  Department: {stu.department || 'Mathematics'}
+                                </p>
                                 {stu.mentorName && (
-                                  <p className="text-blue-900 font-medium text-[10px] pt-1 border-t border-slate-100">
+                                  <p className="text-slate-500 font-medium">
                                     Mentor: {stu.mentorName}
                                   </p>
                                 )}
                               </div>
                             </div>
+                          </div>
 
                             {/* Card Action Buttons - Full Edit Access */}
                             <div className="flex items-center justify-between pt-2 border-t border-slate-100 text-xs">
@@ -1202,10 +1058,31 @@ export const AdminStudentsSection: React.FC<AdminStudentsSectionProps> = ({
                         );
                       })}
                     </div>
-                  )}
                 </div>
               );
             })}
+          {filteredStudents.length === 0 && (
+            <div className="bg-white rounded-2xl border border-slate-200 p-12 text-center space-y-4 shadow-xs">
+              <div className="w-12 h-12 bg-blue-50 text-blue-900 rounded-2xl flex items-center justify-center mx-auto">
+                <Users className="w-6 h-6" />
+              </div>
+              <div className="max-w-md mx-auto">
+                <h4 className="text-base font-bold text-slate-800 font-heading">No Students Found</h4>
+                <p className="text-xs text-slate-500 mt-1">
+                  {students.length === 0
+                    ? 'No students have been added to the department roster yet. Click below to add the first student.'
+                    : 'No students match the current search or filter parameters.'}
+                </p>
+              </div>
+              <button
+                onClick={handleOpenAdd}
+                className="px-4 py-2 bg-blue-900 text-amber-300 font-bold text-xs rounded-xl hover:bg-blue-800 transition-colors cursor-pointer inline-flex items-center gap-2"
+              >
+                <UserPlus className="w-4 h-4" />
+                <span>Add New Student</span>
+              </button>
+            </div>
+          )}
         </div>
       )}
 
@@ -1442,9 +1319,9 @@ export const AdminStudentsSection: React.FC<AdminStudentsSectionProps> = ({
                           <span className="px-2.5 py-1 rounded-lg text-[11px] font-bold bg-amber-50 text-amber-900 border border-amber-200 inline-block max-w-xs truncate">
                             {stu.selectiveCourse}
                           </span>
-                          {stu.cgpa !== undefined && (
+                          {stu.cgpa !== undefined && stu.cgpa !== null && !isNaN(Number(stu.cgpa)) && (
                             <div className="text-[10px] font-bold text-amber-800 mt-1">
-                              CGPA: {stu.cgpa.toFixed(2)}
+                              CGPA: {Number(stu.cgpa).toFixed(2)}
                             </div>
                           )}
                         </td>
@@ -1579,7 +1456,7 @@ export const AdminStudentsSection: React.FC<AdminStudentsSectionProps> = ({
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div className="sm:col-span-2">
+                  <div>
                     <label className="block font-semibold text-slate-700 mb-1">Gauhati University Reg. No</label>
                     <input
                       type="text"
@@ -1588,6 +1465,20 @@ export const AdminStudentsSection: React.FC<AdminStudentsSectionProps> = ({
                       onChange={(e) => setFormGuRegNo(e.target.value)}
                       className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-900 text-xs font-mono"
                     />
+                  </div>
+                  <div>
+                    <label className="block font-semibold text-slate-700 mb-1">Department *</label>
+                    <select
+                      value={formDepartment}
+                      onChange={(e) => setFormDepartment(e.target.value)}
+                      className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-900 text-xs font-medium"
+                    >
+                      {PRESET_DEPARTMENTS.map((dept) => (
+                        <option key={dept} value={dept}>
+                          {dept}
+                        </option>
+                      ))}
+                    </select>
                   </div>
                 </div>
               </div>
@@ -1598,7 +1489,7 @@ export const AdminStudentsSection: React.FC<AdminStudentsSectionProps> = ({
                   <BookOpen className="w-3.5 h-3.5 text-blue-900" />
                   <span>Academic Course, Selective Track & Semester</span>
                 </span>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
                   <div>
                     <label className="block font-semibold text-slate-700 mb-1">Degree Program *</label>
                     <select

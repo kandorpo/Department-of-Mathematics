@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { hashPassword, verifyPassword } from '../utils/hashHelper';
 import {
   GraduationCap,
   FileText,
@@ -126,6 +127,7 @@ export const StudentPortalModal: React.FC<StudentPortalModalProps> = ({ isOpen, 
   const [loginIdentifier, setLoginIdentifier] = useState('');
   const [loginPassword, setLoginPassword] = useState('');
   const [loginError, setLoginError] = useState('');
+  const [loginNotice, setLoginNotice] = useState('');
 
   // Forgot password flow states
   const [forgotIdentifier, setForgotIdentifier] = useState('');
@@ -201,9 +203,10 @@ export const StudentPortalModal: React.FC<StudentPortalModalProps> = ({ isOpen, 
   if (!isOpen) return null;
 
   // Handle Login
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoginError('');
+    setLoginNotice('');
 
     const query = loginIdentifier.trim().toLowerCase();
     if (!query) {
@@ -213,9 +216,9 @@ export const StudentPortalModal: React.FC<StudentPortalModalProps> = ({ isOpen, 
 
     const found = registeredStudents.find(
       (s) =>
-        s.rollNo.toLowerCase() === query ||
-        s.email.toLowerCase() === query ||
-        (s.guRegNo && s.guRegNo.toLowerCase() === query)
+        (s.rollNo || '').toLowerCase() === query ||
+        (s.email || '').toLowerCase() === query ||
+        (s.guRegNo && (s.guRegNo || '').toLowerCase() === query)
     );
 
     if (found) {
@@ -224,7 +227,8 @@ export const StudentPortalModal: React.FC<StudentPortalModalProps> = ({ isOpen, 
           setLoginError('Password is required to login.');
           return;
         }
-        if (found.password !== loginPassword) {
+        const isCorrect = await verifyPassword(loginPassword, found.password);
+        if (!isCorrect) {
           setLoginError('Incorrect password. Please try again.');
           return;
         }
@@ -253,9 +257,9 @@ export const StudentPortalModal: React.FC<StudentPortalModalProps> = ({ isOpen, 
     const cleanQuery = query.replace(/[^0-9]/g, '');
     const found = registeredStudents.find((s) => {
       if (!s.phone) return false;
-      const cleanPhone = s.phone.replace(/[^0-9]/g, '');
+      const cleanPhone = (s.phone || '').replace(/[^0-9]/g, '');
       if (cleanQuery.length >= 10 && cleanPhone.endsWith(cleanQuery)) return true;
-      return s.phone.toLowerCase().includes(query);
+      return (s.phone || '').toLowerCase().includes(query);
     });
 
     if (!found) {
@@ -299,7 +303,7 @@ export const StudentPortalModal: React.FC<StudentPortalModalProps> = ({ isOpen, 
     }
   };
 
-  const handleForgotResetPassword = (e: React.FormEvent) => {
+  const handleForgotResetPassword = async (e: React.FormEvent) => {
     e.preventDefault();
     setForgotError('');
 
@@ -317,14 +321,15 @@ export const StudentPortalModal: React.FC<StudentPortalModalProps> = ({ isOpen, 
     const cleanQuery = query.replace(/[^0-9]/g, '');
     const matched = registeredStudents.find((s) => {
       const cleanPhone = (s.phone || '').replace(/[^0-9]/g, '');
-      return (s.email && s.email.toLowerCase() === query) ||
-             (s.roll && s.roll.toLowerCase() === query) ||
+      return ((s.email || '').toLowerCase() === query) ||
+             ((s.roll || '').toLowerCase() === query) ||
              (cleanQuery.length >= 10 && cleanPhone.endsWith(cleanQuery)) ||
-             (s.phone && s.phone.toLowerCase().includes(query));
+             ((s.phone || '').toLowerCase().includes(query));
     });
 
     if (matched) {
-      const updated = { ...matched, password: forgotNewPassword };
+      const hashedPassword = await hashPassword(forgotNewPassword);
+      const updated = { ...matched, password: hashedPassword };
       updateRegisteredStudentProfile(updated);
       if (currentStudent && currentStudent.id === matched.id) {
         setCurrentStudent(updated);
@@ -351,7 +356,7 @@ export const StudentPortalModal: React.FC<StudentPortalModalProps> = ({ isOpen, 
   };
 
   // Handle Registration with Mandatory Department Roster Verification
-  const handleRegister = (e: React.FormEvent) => {
+  const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
     setRegError('');
 
@@ -387,7 +392,7 @@ export const StudentPortalModal: React.FC<StudentPortalModalProps> = ({ isOpen, 
 
     // Check duplicate in registered active portal users
     const exists = registeredStudents.some(
-      (s) => s.rollNo.toLowerCase() === regRollNo.trim().toLowerCase() || s.email.toLowerCase() === regEmail.trim().toLowerCase()
+      (s) => (s.rollNo || '').toLowerCase() === regRollNo.trim().toLowerCase() || (s.email || '').toLowerCase() === regEmail.trim().toLowerCase()
     );
 
     if (exists) {
@@ -398,6 +403,8 @@ export const StudentPortalModal: React.FC<StudentPortalModalProps> = ({ isOpen, 
     // Assign mentor (use matched student's assigned mentor or faculty member)
     const matched = verification.matchedStudent;
     const assignedMentor = matched?.mentorName || faculty[0]?.name || 'Dr. Bidyut Kalita (HOD)';
+
+    const hashedPassword = await hashPassword(regPassword);
 
     const newStudent: StudentProfile = {
       id: `stu-${Date.now()}`,
@@ -413,19 +420,30 @@ export const StudentPortalModal: React.FC<StudentPortalModalProps> = ({ isOpen, 
       bio: regBio.trim() || `Verified student in the Department of Mathematics, Dudhnoi College (${matched?.selectiveCourse || 'Honours track'}).`,
       mentorName: assignedMentor,
       interests: regInterests.split(',').map((i) => i.trim()).filter(Boolean),
-      password: regPassword,
+      password: hashedPassword,
       registeredDate: new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
     };
 
     addRegisteredStudentProfile(newStudent);
-    setCurrentStudent(newStudent);
 
-    localStorage.setItem(STORAGE_KEY_STUDENT, JSON.stringify(newStudent));
+    // Reset registration form fields
+    setRegFullName('');
+    setRegRollNo('');
+    setRegGuRegNo('');
+    setRegEmail('');
+    setRegPhone('');
+    setRegBio('');
+    setRegPassword('');
+    setRegConfirmPassword('');
 
-    setRegSuccess(true);
-    setTimeout(() => {
-      setRegSuccess(false);
-    }, 4000);
+    // Pre-fill login credentials field for convenience
+    setLoginIdentifier(newStudent.rollNo);
+    setLoginPassword('');
+    setLoginError('');
+
+    // Set success notification and prompt user to login explicitly
+    setLoginNotice(`Registration completed successfully for ${newStudent.fullName}! Please enter your password below to log in to your student profile.`);
+    setAuthMode('login');
   };
 
   // Handle Logout
@@ -906,6 +924,7 @@ export const StudentPortalModal: React.FC<StudentPortalModalProps> = ({ isOpen, 
                         setAuthMode('register');
                         setLoginError('');
                         setRegError('');
+                        setLoginNotice('');
                       }}
                       className={`px-5 py-2 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
                         authMode === 'register'
@@ -929,6 +948,25 @@ export const StudentPortalModal: React.FC<StudentPortalModalProps> = ({ isOpen, 
                       </p>
                     </div>
 
+                    {loginNotice && (
+                      <div className="p-3.5 rounded-xl bg-emerald-50 border border-emerald-300 text-emerald-900 text-xs flex items-center justify-between gap-2 shadow-2xs animate-in fade-in">
+                        <div className="flex items-center gap-2.5">
+                          <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" />
+                          <div>
+                            <p className="font-bold text-emerald-950">Registration Complete!</p>
+                            <p className="text-[11px] text-emerald-800">{loginNotice}</p>
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setLoginNotice('')}
+                          className="text-emerald-700 hover:text-emerald-900 font-bold text-xs cursor-pointer px-1.5 py-0.5"
+                        >
+                          ✕
+                        </button>
+                      </div>
+                    )}
+
                     {loginError && (
                       <div className="p-3 rounded-lg bg-red-50 border border-red-200 text-red-700 text-xs flex items-center gap-2">
                         <AlertCircle className="w-4 h-4 shrink-0" />
@@ -946,7 +984,7 @@ export const StudentPortalModal: React.FC<StudentPortalModalProps> = ({ isOpen, 
                           <input
                             type="text"
                             required
-                            placeholder="e.g. US-241-102-0042 or ankur.rabha@student.dudhnoicollege.ac.in"
+                            placeholder="e.g. US-241-102-0042 or student@dudhnoicollege.ac.in"
                             value={loginIdentifier}
                             onChange={(e) => setLoginIdentifier(e.target.value)}
                             className="w-full pl-9 pr-3 py-2.5 bg-slate-50 border border-slate-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-900 focus:bg-white transition-all text-xs text-slate-800"

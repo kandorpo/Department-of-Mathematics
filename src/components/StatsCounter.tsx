@@ -57,25 +57,23 @@ export const StatsCounter: React.FC = () => {
   }, [isVisible]);
 
   const filteredImages = (DEPARTMENT_INFO.imageUrls || []).filter(u => typeof u === 'string' && u.trim().length > 5);
-  const images = filteredImages.length > 0
-    ? filteredImages
-    : [
-        'https://images.unsplash.com/photo-1523050854058-8df90110c9f1?auto=format&fit=crop&q=80&w=1200',
-        'https://images.unsplash.com/photo-1524178232363-1fb2b075b655?auto=format&fit=crop&q=80&w=1200',
-        'https://images.unsplash.com/photo-1509228468518-180dd4864904?auto=format&fit=crop&q=80&w=1200'
-      ];
+  const images = filteredImages;
+  const hasImages = images.length > 0;
 
-  const validIndex = currentImageIndex >= images.length ? 0 : currentImageIndex;
+  const validIndex = images.length > 0 ? (currentImageIndex >= images.length ? 0 : currentImageIndex) : 0;
 
   const nextImage = () => {
+    if (images.length === 0) return;
     setCurrentImageIndex((prev) => (prev + 1) % images.length);
   };
 
   const prevImage = () => {
+    if (images.length === 0) return;
     setCurrentImageIndex((prev) => (prev - 1 + images.length) % images.length);
   };
 
   useEffect(() => {
+    if (images.length <= 1) return;
     const interval = setInterval(nextImage, 5000);
     return () => clearInterval(interval);
   }, [images.length]);
@@ -101,34 +99,34 @@ export const StatsCounter: React.FC = () => {
 
         <div className="mb-14 relative group">
           <div className="relative rounded-2xl md:rounded-3xl overflow-hidden border border-slate-200/90 shadow-xl bg-slate-900 h-72 sm:h-96 md:h-[420px] lg:h-[460px]">
-            <AnimatePresence mode="wait">
-              <motion.img
-                key={images[validIndex]}
-                src={images[validIndex]}
-                initial={{ opacity: 0, x: 100 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -100 }}
-                transition={{ duration: 0.5 }}
-                alt="Department"
-                className="w-full h-full object-cover object-center"
-                referrerPolicy="no-referrer"
-                onError={(e) => {
-                  const target = e.currentTarget;
-                  if (!target.src.includes('photo-1523050854058')) {
-                    target.src = 'https://images.unsplash.com/photo-1523050854058-8df90110c9f1?auto=format&fit=crop&q=80&w=1200';
-                  }
-                }}
-              />
-            </AnimatePresence>
+            {hasImages && (
+              <AnimatePresence mode="wait">
+                <motion.img
+                  key={images[validIndex]}
+                  src={images[validIndex]}
+                  initial={{ opacity: 0, x: 100 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -100 }}
+                  transition={{ duration: 0.5 }}
+                  alt="Department"
+                  className="w-full h-full object-cover object-center"
+                  referrerPolicy="no-referrer"
+                />
+              </AnimatePresence>
+            )}
             
             <div className="absolute inset-0 bg-gradient-to-t from-slate-950/85 via-slate-900/30 to-transparent pointer-events-none" />
 
-            <button onClick={prevImage} className="absolute left-4 top-1/2 -translate-y-1/2 bg-white/20 p-2 rounded-full text-white hover:bg-white/40 cursor-pointer">
-                <ChevronLeft />
-            </button>
-            <button onClick={nextImage} className="absolute right-4 top-1/2 -translate-y-1/2 bg-white/20 p-2 rounded-full text-white hover:bg-white/40 cursor-pointer">
-                <ChevronRight />
-            </button>
+            {hasImages && images.length > 1 && (
+              <>
+                <button onClick={prevImage} className="absolute left-4 top-1/2 -translate-y-1/2 bg-white/20 p-2 rounded-full text-white hover:bg-white/40 cursor-pointer">
+                    <ChevronLeft />
+                </button>
+                <button onClick={nextImage} className="absolute right-4 top-1/2 -translate-y-1/2 bg-white/20 p-2 rounded-full text-white hover:bg-white/40 cursor-pointer">
+                    <ChevronRight />
+                </button>
+              </>
+            )}
             
             <div className="absolute top-4 left-4 sm:top-6 sm:left-6 flex flex-wrap gap-2">
               <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-slate-900/80 backdrop-blur-md text-white text-xs font-semibold border border-white/20 shadow-sm">

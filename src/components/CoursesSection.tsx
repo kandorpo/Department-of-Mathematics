@@ -121,10 +121,15 @@ export const CoursesSection: React.FC = () => {
 
                 {/* Course Title & Type Badge */}
                 <div>
-                  <div className="inline-block mb-1">
+                  <div className="inline-flex gap-1.5 mb-1 flex-wrap">
                     <span className="text-[10px] font-bold uppercase tracking-wider text-amber-700 bg-amber-50 px-2 py-0.5 rounded border border-amber-200">
                       {course.type}
                     </span>
+                    {course.academicLevel && (
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-purple-700 bg-purple-50 px-2 py-0.5 rounded border border-purple-200">
+                        {course.academicLevel}
+                      </span>
+                    )}
                   </div>
                   <h3 className="text-base font-bold text-slate-900 group-hover:text-blue-900 transition-colors">
                     {course.name}
@@ -147,14 +152,28 @@ export const CoursesSection: React.FC = () => {
               </div>
 
               {/* Action Button */}
-              <div className="pt-5 border-t border-slate-100 mt-4">
+              <div className="pt-5 border-t border-slate-100 mt-4 flex items-center gap-2">
                 <button
                   onClick={() => setSelectedCourse(course)}
-                  className="w-full py-2 bg-slate-50 hover:bg-blue-900 text-slate-700 hover:text-white rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 border border-slate-200 hover:border-blue-900 cursor-pointer"
+                  className={`py-2 bg-slate-50 hover:bg-blue-900 text-slate-700 hover:text-white rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 border border-slate-200 hover:border-blue-900 cursor-pointer ${
+                    course.externalLink ? 'flex-1' : 'w-full'
+                  }`}
                 >
-                  <span>View Syllabus & Textbooks</span>
+                  <span>Syllabus & Info</span>
                   <ChevronRight className="w-3.5 h-3.5" />
                 </button>
+                {course.externalLink && (
+                  <a
+                    href={course.externalLink}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="px-3.5 py-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 hover:border-emerald-300 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+                    title="Open External Resource"
+                  >
+                    <ExternalLink className="w-4 h-4 shrink-0 text-emerald-700" />
+                    <span>Open Link</span>
+                  </a>
+                )}
               </div>
 
             </div>
@@ -201,6 +220,11 @@ export const CoursesSection: React.FC = () => {
                   <span className="text-xs font-bold bg-amber-50 text-amber-800 px-2 py-0.5 rounded border border-amber-200">
                     {selectedCourse.type}
                   </span>
+                  {selectedCourse.academicLevel && (
+                    <span className="text-xs font-bold bg-purple-50 text-purple-800 px-2 py-0.5 rounded border border-purple-200">
+                      Level: {selectedCourse.academicLevel}
+                    </span>
+                  )}
                   <span className="text-xs text-slate-500 font-medium">
                     {selectedCourse.credits} Credits • {selectedCourse.semester}
                   </span>
@@ -285,17 +309,47 @@ export const CoursesSection: React.FC = () => {
                 Available in Departmental Seminar Library • NEP 2020 Aligned
               </span>
 
-              <div className="flex items-center gap-2 w-full sm:w-auto">
+              <div className="flex items-center gap-2 w-full sm:w-auto flex-wrap justify-end">
+                {selectedCourse.downloadUrl && selectedCourse.downloadUrl !== '#' && (
+                  <button
+                    onClick={() => {
+                      if (selectedCourse.downloadUrl?.startsWith('http')) {
+                        window.open(selectedCourse.downloadUrl, '_blank', 'noopener,noreferrer');
+                      } else {
+                        const link = document.createElement('a');
+                        link.href = selectedCourse.downloadUrl || '';
+                        link.download = `${(selectedCourse.name || 'course').toLowerCase().replace(/\s+/g, '_')}_document.pdf`;
+                        document.body.appendChild(link);
+                        link.click();
+                        document.body.removeChild(link);
+                      }
+                    }}
+                    className="px-4 py-2 bg-blue-900 hover:bg-blue-950 text-white text-xs font-bold rounded-lg flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+                  >
+                    <span>View / Download Attachment PDF</span>
+                  </button>
+                )}
+                {selectedCourse.externalLink && (
+                  <a
+                    href={selectedCourse.externalLink}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="px-4 py-2 bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold rounded-lg flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+                  >
+                    <ExternalLink className="w-3.5 h-3.5" />
+                    <span>Open Link</span>
+                  </a>
+                )}
                 <button
                   onClick={() => downloadCourseSyllabusPDF(selectedCourse)}
-                  className="flex-1 sm:flex-none px-4 py-2 bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold rounded-lg transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-xs active:scale-95"
+                  className="px-4 py-2 bg-slate-200 hover:bg-slate-300 text-slate-800 text-xs font-bold rounded-lg transition-all flex items-center justify-center gap-1.5 cursor-pointer active:scale-95"
                 >
                   <Download className="w-3.5 h-3.5" />
                   <span>Download Syllabus PDF</span>
                 </button>
                 <button
                   onClick={() => setSelectedCourse(null)}
-                  className="flex-1 sm:flex-none px-5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-lg transition-colors cursor-pointer"
+                  className="px-5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-lg transition-colors cursor-pointer"
                 >
                   Close
                 </button>

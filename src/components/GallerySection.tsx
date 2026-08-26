@@ -86,58 +86,68 @@ export const GallerySection: React.FC = () => {
         </div>
 
         {/* Gallery Grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-          {filteredGallery.map((item, idx) => (
-            <div
-              key={item.id}
-              onClick={() => setLightboxIndex(idx)}
-              className="group relative rounded-2xl overflow-hidden bg-slate-100 border border-slate-200/80 shadow-xs hover:shadow-lg transition-all duration-300 cursor-pointer h-64 flex flex-col justify-end"
-            >
-              <img
-                src={item.image}
-                alt={item.title}
-                className="absolute inset-0 w-full h-full object-cover group-hover:scale-108 transition-transform duration-500"
-                referrerPolicy="no-referrer"
-              />
-              <div className="absolute inset-0 bg-gradient-to-t from-slate-950/90 via-slate-950/20 to-transparent group-hover:from-slate-950/95 transition-colors"></div>
+        {filteredGallery.length === 0 ? (
+          <div className="text-center py-12 px-4 bg-slate-50 border border-dashed border-slate-300 rounded-2xl max-w-xl mx-auto space-y-2">
+            <ImageIcon className="w-8 h-8 text-slate-400 mx-auto" />
+            <h3 className="text-sm font-bold text-slate-700">No Gallery Items Found</h3>
+            <p className="text-xs text-slate-500">
+              There are currently no photos or magazine images in this category.
+            </p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+            {filteredGallery.map((item, idx) => (
+              <div
+                key={item.id}
+                onClick={() => setLightboxIndex(idx)}
+                className="group relative rounded-2xl overflow-hidden bg-slate-100 border border-slate-200/80 shadow-xs hover:shadow-lg transition-all duration-300 cursor-pointer h-64 flex flex-col justify-end"
+              >
+                <img
+                  src={item.image}
+                  alt={item.title}
+                  className="absolute inset-0 w-full h-full object-cover group-hover:scale-108 transition-transform duration-500"
+                  referrerPolicy="no-referrer"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-slate-950/90 via-slate-950/20 to-transparent group-hover:from-slate-950/95 transition-colors"></div>
 
-              {/* Category Pill on top */}
-              <span className="absolute top-3 left-3 px-2 py-0.5 rounded text-[10px] font-bold bg-slate-900/80 text-blue-200 backdrop-blur-xs border border-white/10 uppercase tracking-wider">
-                {item.category}
-              </span>
+                {/* Category Pill on top */}
+                <span className="absolute top-3 left-3 px-2 py-0.5 rounded text-[10px] font-bold bg-slate-900/80 text-blue-200 backdrop-blur-xs border border-white/10 uppercase tracking-wider">
+                  {item.category}
+                </span>
 
-              <div className="relative p-4 text-white space-y-1 z-10">
-                <div className="flex items-center gap-1 text-[10px] text-amber-300 font-medium">
-                  <Calendar className="w-3 h-3" />
-                  <span>{item.date}</span>
+                <div className="relative p-4 text-white space-y-1 z-10">
+                  <div className="flex items-center gap-1 text-[10px] text-amber-300 font-medium">
+                    <Calendar className="w-3 h-3" />
+                    <span>{item.date}</span>
+                  </div>
+                  <h3 className="text-xs font-bold leading-snug line-clamp-2">
+                    {item.title}
+                  </h3>
+                  <p className="text-[11px] text-slate-300 line-clamp-1 group-hover:line-clamp-2 transition-all">
+                    {item.caption}
+                  </p>
                 </div>
-                <h3 className="text-xs font-bold leading-snug line-clamp-2">
-                  {item.title}
-                </h3>
-                <p className="text-[11px] text-slate-300 line-clamp-1 group-hover:line-clamp-2 transition-all">
-                  {item.caption}
-                </p>
-              </div>
 
-              <div className="absolute top-3 right-3 flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    const safeName = item.title.replace(/[^a-zA-Z0-9]/g, '_');
-                    downloadImageFile(item.image, `MathDept_${safeName}.jpg`);
-                  }}
-                  className="p-1.5 bg-slate-900/80 hover:bg-blue-900 backdrop-blur-xs rounded-full text-white cursor-pointer shadow-xs active:scale-90 transition-transform"
-                  title="Download Image to Storage"
-                >
-                  <Download className="w-3.5 h-3.5" />
-                </button>
-                <div className="p-1.5 bg-white/20 backdrop-blur-xs rounded-full text-white">
-                  <ZoomIn className="w-3.5 h-3.5" />
+                <div className="absolute top-3 right-3 flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      const safeName = item.title.replace(/[^a-zA-Z0-9]/g, '_');
+                      downloadImageFile(item.image, `MathDept_${safeName}.jpg`);
+                    }}
+                    className="p-1.5 bg-slate-900/80 hover:bg-blue-900 backdrop-blur-xs rounded-full text-white cursor-pointer shadow-xs active:scale-90 transition-transform"
+                    title="Download Image to Storage"
+                  >
+                    <Download className="w-3.5 h-3.5" />
+                  </button>
+                  <div className="p-1.5 bg-white/20 backdrop-blur-xs rounded-full text-white">
+                    <ZoomIn className="w-3.5 h-3.5" />
+                  </div>
                 </div>
               </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        )}
 
       </div>
 

@@ -7,8 +7,6 @@ import {
   Sparkles,
   ArrowRight,
   X,
-  CheckCircle2,
-  Ticket,
   ChevronRight
 } from 'lucide-react';
 import { useDepartmentData } from '../context/DataContext';
@@ -17,10 +15,6 @@ import { EventItem } from '../types';
 export const EventsSection: React.FC = () => {
   const { events: EVENTS_DATA, setIsAdminOpen } = useDepartmentData();
   const [selectedEvent, setSelectedEvent] = useState<EventItem | null>(null);
-  const [regSuccess, setRegSuccess] = useState(false);
-  const [regName, setRegName] = useState('');
-  const [regEmail, setRegEmail] = useState('');
-  const [regPhone, setRegPhone] = useState('');
   const [filterType, setFilterType] = useState<'All' | 'Upcoming' | 'Past'>('All');
 
   const filteredEvents = EVENTS_DATA.filter((evt) => {
@@ -29,18 +23,8 @@ export const EventsSection: React.FC = () => {
     return true;
   });
 
-  const handleRegisterSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!regName.trim() || !regEmail.trim()) return;
-    setRegSuccess(true);
-  };
-
   const handleCloseModal = () => {
     setSelectedEvent(null);
-    setRegSuccess(false);
-    setRegName('');
-    setRegEmail('');
-    setRegPhone('');
   };
 
   return (
@@ -150,13 +134,9 @@ export const EventsSection: React.FC = () => {
               <div className="p-5 pt-0">
                 <button
                   onClick={() => setSelectedEvent(event)}
-                  className={`w-full py-2.5 rounded-xl text-xs font-bold transition-colors flex items-center justify-center gap-1.5 cursor-pointer ${
-                    event.registrationOpen
-                      ? 'bg-blue-900 hover:bg-blue-950 text-white shadow-xs'
-                      : 'bg-slate-100 hover:bg-slate-200 text-slate-800'
-                  }`}
+                  className="w-full py-2.5 rounded-xl text-xs font-bold transition-all bg-blue-900 hover:bg-blue-950 text-white shadow-xs flex items-center justify-center gap-1.5 cursor-pointer active:scale-98"
                 >
-                  <span>{event.registrationOpen ? 'Register / View Details' : 'View Event Archives'}</span>
+                  <span>View Event Details</span>
                   <ChevronRight className="w-3.5 h-3.5" />
                 </button>
               </div>
@@ -228,80 +208,49 @@ export const EventsSection: React.FC = () => {
               )}
             </div>
 
-            {/* Registration Form / Confirmation */}
-            {selectedEvent.registrationOpen && (
-              <div className="border-t border-slate-200 pt-4 space-y-4">
-                <h4 className="text-xs font-bold text-slate-900 uppercase tracking-wider flex items-center gap-1.5">
-                  <Ticket className="w-4 h-4 text-amber-600" />
-                  <span>Participant Registration (No Registration Fee)</span>
-                </h4>
+            {/* No registration needed - details are fully open */}
 
-                {regSuccess ? (
-                  <div className="p-4 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-900 space-y-2 text-xs">
-                    <div className="flex items-center gap-2 font-bold text-emerald-950">
-                      <CheckCircle2 className="w-5 h-5 text-emerald-600" />
-                      <span>Registration Confirmed!</span>
-                    </div>
-                    <p>
-                      Thank you <strong>{regName}</strong>! Your seat has been reserved. A confirmation ticket has been logged with Registration ID <strong>#MATH-2026-{Math.floor(1000 + Math.random() * 9000)}</strong>.
-                    </p>
-                  </div>
-                ) : (
-                  <form onSubmit={handleRegisterSubmit} className="space-y-3 text-xs">
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                      <div>
-                        <label className="block text-slate-700 font-medium mb-1">Full Name *</label>
-                        <input
-                          type="text"
-                          required
-                          placeholder="e.g. Barsha Rabha"
-                          value={regName}
-                          onChange={(e) => setRegName(e.target.value)}
-                          className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-900 outline-none"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-slate-700 font-medium mb-1">Email Address *</label>
-                        <input
-                          type="email"
-                          required
-                          placeholder="barsha@gmail.com"
-                          value={regEmail}
-                          onChange={(e) => setRegEmail(e.target.value)}
-                          className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-900 outline-none"
-                        />
-                      </div>
-                    </div>
-
-                    <div>
-                      <label className="block text-slate-700 font-medium mb-1">Institution / Department / Semester</label>
-                      <input
-                        type="text"
-                        placeholder="e.g. Dudhnoi College, B.Sc. 3rd Semester"
-                        value={regPhone}
-                        onChange={(e) => setRegPhone(e.target.value)}
-                        className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-900 outline-none"
-                      />
-                    </div>
-
-                    <button
-                      type="submit"
-                      className="w-full py-2.5 bg-blue-900 hover:bg-blue-950 text-white font-bold rounded-xl transition-colors cursor-pointer"
-                    >
-                      Confirm Event Registration
-                    </button>
-                  </form>
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-2 border-t border-slate-200">
+              <span className="text-[11px] text-slate-500">
+                {selectedEvent.externalLink ? 'External Link Attachment' : selectedEvent.downloadUrl ? 'PDF Attachment' : ''}
+              </span>
+              <div className="flex items-center gap-2 w-full sm:w-auto">
+                {selectedEvent.downloadUrl && selectedEvent.downloadUrl !== '#' && (
+                  <button
+                    onClick={() => {
+                      if (selectedEvent.downloadUrl?.startsWith('http')) {
+                        window.open(selectedEvent.downloadUrl, '_blank', 'noopener,noreferrer');
+                      } else {
+                        const link = document.createElement('a');
+                        link.href = selectedEvent.downloadUrl || '';
+                        link.download = `${(selectedEvent.title || 'event').toLowerCase().replace(/\s+/g, '_')}_document.pdf`;
+                        document.body.appendChild(link);
+                        link.click();
+                        document.body.removeChild(link);
+                      }
+                    }}
+                    className="px-4 py-2 bg-blue-900 hover:bg-blue-950 text-white text-xs font-bold rounded-lg flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+                  >
+                    <span>View / Download PDF</span>
+                  </button>
                 )}
+                {selectedEvent.externalLink && (
+                  <a
+                    href={selectedEvent.externalLink}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="px-4 py-2 bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold rounded-lg flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+                  >
+                    <span>Open Link</span>
+                  </a>
+                )}
+                <button
+                  onClick={handleCloseModal}
+                  className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-lg cursor-pointer"
+                >
+                  Close
+                </button>
               </div>
-            )}
-
-            <div className="flex justify-end pt-2 border-t border-slate-200">
-              <button
-                onClick={handleCloseModal}
-                className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-lg cursor-pointer"
-              >
-                Close
-              </button>
             </div>
 
           </div>

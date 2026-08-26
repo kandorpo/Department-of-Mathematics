@@ -17,7 +17,7 @@ import { NoticeItem } from '../types';
 import { downloadNoticePDF } from '../utils/downloadHelper';
 
 export const NoticeBoard: React.FC = () => {
-  const { notices: NOTICES_DATA, setIsAdminOpen } = useDepartmentData();
+  const { notices: NOTICES_DATA, setIsAdminOpen, departmentInfo: DEPARTMENT_INFO } = useDepartmentData();
   const [activeCategory, setActiveCategory] = useState<string>('All');
   const [selectedNotice, setSelectedNotice] = useState<NoticeItem | null>(null);
   const [viewAllModal, setViewAllModal] = useState(false);
@@ -31,9 +31,9 @@ export const NoticeBoard: React.FC = () => {
       const q = searchQuery.toLowerCase().trim();
       const matchesSearch =
         q === '' ||
-        n.title.toLowerCase().includes(q) ||
-        n.description.toLowerCase().includes(q) ||
-        (n.refNo && n.refNo.toLowerCase().includes(q));
+        (n.title || '').toLowerCase().includes(q) ||
+        (n.description || '').toLowerCase().includes(q) ||
+        (n.refNo && (n.refNo || '').toLowerCase().includes(q));
 
       return matchesCat && matchesSearch;
     });
@@ -204,7 +204,7 @@ export const NoticeBoard: React.FC = () => {
             <div className="p-6 rounded-xl bg-slate-50 border border-slate-200 space-y-4 text-xs text-slate-800 leading-relaxed font-sans">
               <div className="text-center border-b border-slate-200 pb-3 space-y-0.5">
                 <h4 className="font-bold text-slate-900 uppercase tracking-wide">
-                  Department of Mathematics • Dudhnoi College
+                  Department of Mathematics • {DEPARTMENT_INFO.college || 'Dudhnoi College'}
                 </h4>
                 <p className="text-[11px] text-slate-500">
                   Dudhnoi, Goalpara, Assam - 783124 | Affiliated to Gauhati University
@@ -223,11 +223,11 @@ export const NoticeBoard: React.FC = () => {
               <div className="pt-4 border-t border-slate-200 flex justify-between items-end text-[11px] text-slate-600">
                 <div>
                   <div>Date of Issue: {selectedNotice.date}</div>
-                  <div>Issued by: Office of the Head, Dept. of Mathematics</div>
+                  <div>Issued by: {selectedNotice.publisherName || 'Office of the Head, Dept. of Mathematics'}</div>
                 </div>
                 <div className="text-right">
-                  <div className="font-bold text-slate-900">Dr. Mukul Chandra Kalita</div>
-                  <div>Head, Department of Mathematics</div>
+                  <div className="font-bold text-slate-900">{selectedNotice.publisherName || 'Dr. Mukul Chandra Kalita'}</div>
+                  <div>Department of Mathematics</div>
                 </div>
               </div>
             </div>
@@ -236,19 +236,38 @@ export const NoticeBoard: React.FC = () => {
             <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-2">
               <span className="text-xs text-slate-500 flex items-center gap-1">
                 <FileText className="w-3.5 h-3.5 text-blue-900" />
-                <span>Signed PDF Circular ({selectedNotice.fileSize || '380 KB'})</span>
+                <span>
+                  {selectedNotice.externalLink ? 'External Link Attachment' : `Signed PDF Circular (${selectedNotice.fileSize || '380 KB'})`}
+                </span>
               </span>
 
               <div className="flex items-center gap-2 w-full sm:w-auto">
-                <button
-                  onClick={() => {
-                    downloadNoticePDF(selectedNotice);
-                  }}
-                  className="flex-1 sm:flex-none px-4 py-2 bg-blue-900 hover:bg-blue-950 text-white text-xs font-bold rounded-lg flex items-center justify-center gap-1.5 transition-colors cursor-pointer shadow-xs active:scale-95"
-                >
-                  <Download className="w-3.5 h-3.5" />
-                  <span>Download Official PDF</span>
-                </button>
+                {selectedNotice.downloadUrl && selectedNotice.downloadUrl !== '#' && (
+                  <button
+                    onClick={() => {
+                      if (selectedNotice.downloadUrl?.startsWith('http')) {
+                        window.open(selectedNotice.downloadUrl, '_blank', 'noopener,noreferrer');
+                      } else {
+                        downloadNoticePDF(selectedNotice);
+                      }
+                    }}
+                    className="flex-1 sm:flex-none px-4 py-2 bg-blue-900 hover:bg-blue-950 text-white text-xs font-bold rounded-lg flex items-center justify-center gap-1.5 transition-colors cursor-pointer shadow-xs active:scale-95"
+                  >
+                    <Download className="w-3.5 h-3.5" />
+                    <span>View / Download PDF</span>
+                  </button>
+                )}
+                {selectedNotice.externalLink && (
+                  <a
+                    href={selectedNotice.externalLink}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex-1 sm:flex-none px-4 py-2 bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold rounded-lg flex items-center justify-center gap-1.5 transition-colors cursor-pointer shadow-xs active:scale-95"
+                  >
+                    <ExternalLink className="w-3.5 h-3.5" />
+                    <span>Open Link</span>
+                  </a>
+                )}
                 <button
                   onClick={() => setSelectedNotice(null)}
                   className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-lg transition-colors cursor-pointer"

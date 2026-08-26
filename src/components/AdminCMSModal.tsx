@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { hashPassword } from '../utils/hashHelper';
 import {
   X,
   Lock,
@@ -20,6 +21,7 @@ import {
   Download,
   Upload,
   RefreshCw,
+  Mail,
   CheckCircle2,
   AlertCircle,
   Eye,
@@ -35,7 +37,8 @@ import {
   UserPlus,
   ShieldAlert,
   ArrowRight,
-  UserCheck
+  UserCheck,
+  PanelBottom
 } from 'lucide-react';
 import { useDepartmentData } from '../context/DataContext';
 import { AdminStudentsSection } from './AdminStudentsSection';
@@ -51,7 +54,8 @@ import {
   AchievementItem,
   GalleryItem,
   BlogPost,
-  AdminAccount
+  AdminAccount,
+  FooterLink
 } from '../types';
 
 type AdminTab =
@@ -71,6 +75,7 @@ type AdminTab =
   | 'welcome'
   | 'stats'
   | 'foundations'
+  | 'footer'
   | 'backup'
   | 'admins';
 
@@ -96,6 +101,7 @@ export const AdminCMSModal: React.FC = () => {
     addDepartmentStudent,
     updateDepartmentStudent,
     deleteDepartmentStudent,
+    deleteMultipleDepartmentStudents,
     bulkImportDepartmentStudents,
 
     notices,
@@ -153,13 +159,15 @@ export const AdminCMSModal: React.FC = () => {
     deleteAdminAccount,
     submitAdminRegistrationRequest,
     approveAdminRegistrationRequest,
-    rejectAdminRegistrationRequest
+    rejectAdminRegistrationRequest,
+    generatePasswordResetToken
   } = useDepartmentData();
 
   // Local tab state
   const [activeTab, setActiveTab] = useState<AdminTab>('general');
-  const [authMode, setAuthMode] = useState<'login' | 'register'>('login');
+  const [authMode, setAuthMode] = useState<'login' | 'register' | 'forgot'>('login');
   const [username, setUsername] = useState('');
+  const [forgotUsername, setForgotUsername] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loginError, setLoginError] = useState('');
@@ -257,14 +265,14 @@ export const AdminCMSModal: React.FC = () => {
     reader.readAsDataURL(file);
   };
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoginError('');
     if (!username.trim() || !password.trim()) {
       setLoginError('Please enter both your Username/Email and Password.');
       return;
     }
-    const success = loginAdmin(username, password);
+    const success = await loginAdmin(username, password);
     if (success) {
       setUsername('');
       setPassword('');
@@ -277,7 +285,7 @@ export const AdminCMSModal: React.FC = () => {
 
 
 
-  const handleAdminRegistration = (e: React.FormEvent) => {
+  const handleAdminRegistration = async (e: React.FormEvent) => {
     e.preventDefault();
     setRegError('');
     setRegSuccessMsg('');
@@ -289,26 +297,28 @@ export const AdminCMSModal: React.FC = () => {
 
     const normalizedUser = regUsername.trim().toLowerCase();
     const normalizedEmail = regEmail.trim().toLowerCase();
-    const isDuplicate = admins.some(a => a.username.toLowerCase() === normalizedUser || a.email.toLowerCase() === normalizedEmail);
+    const isDuplicate = admins.some(a => (a.username || '').toLowerCase() === normalizedUser || (a.email || '').toLowerCase() === normalizedEmail);
     if (isDuplicate) {
       setRegError('An administrator account with this Username or Email is already registered.');
       return;
     }
 
     const isDuplicateRequest = (adminRegistrationRequests || []).some(
-      r => r.status === 'Pending' && (r.username.toLowerCase() === normalizedUser || r.email.toLowerCase() === normalizedEmail)
+      r => r.status === 'Pending' && ((r.username || '').toLowerCase() === normalizedUser || (r.email || '').toLowerCase() === normalizedEmail)
     );
     if (isDuplicateRequest) {
       setRegError('A pending registration request with this Username or Email already exists.');
       return;
     }
 
+    const hashedPassword = await hashPassword(regPassword.trim());
+
     submitAdminRegistrationRequest({
       fullName: regFullName.trim(),
       username: regUsername.trim(),
       email: regEmail.trim(),
       role: regRole,
-      passwordHash: regPassword.trim()
+      passwordHash: hashedPassword
     });
 
     setRegSuccessMsg('Your registration request has been submitted successfully! Please wait for authorization/approval from Super Admin Kandorpo Barman.');
@@ -319,33 +329,52 @@ export const AdminCMSModal: React.FC = () => {
     setRegPassword('');
   };
 
-  const handleSaveAdminAccount = (e: React.FormEvent) => {
+  const handleSaveAdminAccount = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!adminFormState.fullName?.trim() || !adminFormState.username?.trim() || !adminFormState.email?.trim() || !adminFormState.passwordHash?.trim()) {
       alert('All fields including password are required.');
       return;
     }
 
+    let passToSave = adminFormState.passwordHash.trim();
+
     if (editingAdmin) {
+      if (passToSave !== editingAdmin.passwordHash && passToSave.length !== 64) {
+        passToSave = await hashPassword(passToSave);
+      }
+      const isSuperAdmin = currentAdmin?.role === 'Super Admin' || currentAdmin?.username?.toLowerCase() === 'kandorpo';
+      if (!isSuperAdmin && currentAdmin?.id !== editingAdmin.id) {
+        showStatus('Unauthorized access: Only Super Admins can update other admin profiles.');
+        return;
+      }
       const updated: AdminAccount = {
         ...editingAdmin,
         fullName: adminFormState.fullName,
         username: adminFormState.username,
         email: adminFormState.email,
-        role: adminFormState.role as any,
-        passwordHash: adminFormState.passwordHash,
-        status: adminFormState.status as any
+        role: isSuperAdmin ? (adminFormState.role as any) : editingAdmin.role,
+        passwordHash: passToSave,
+        status: isSuperAdmin ? (adminFormState.status as any) : editingAdmin.status
       };
       updateAdminAccount(updated);
       showStatus(`Admin account "${updated.fullName}" updated successfully.`);
     } else {
+      const isSuperAdmin = currentAdmin?.role === 'Super Admin' || currentAdmin?.username?.toLowerCase() === 'kandorpo';
+      if (!isSuperAdmin) {
+        showStatus('Unauthorized access: Only Super Admins can create new administrator accounts.');
+        return;
+      }
       // Check duplicate
       const cleanUser = adminFormState.username.trim().toLowerCase();
       const cleanEmail = adminFormState.email.trim().toLowerCase();
-      const duplicate = (admins || []).some(a => a.username.toLowerCase() === cleanUser || a.email.toLowerCase() === cleanEmail);
+      const duplicate = (admins || []).some(a => (a.username || '').toLowerCase() === cleanUser || (a.email || '').toLowerCase() === cleanEmail);
       if (duplicate) {
         alert('An account with this Username or Email already exists.');
         return;
+      }
+
+      if (passToSave.length !== 64) {
+        passToSave = await hashPassword(passToSave);
       }
 
       const newAdmin: AdminAccount = {
@@ -354,7 +383,7 @@ export const AdminCMSModal: React.FC = () => {
         username: adminFormState.username.trim(),
         email: adminFormState.email.trim(),
         role: adminFormState.role as any,
-        passwordHash: adminFormState.passwordHash.trim(),
+        passwordHash: passToSave,
         status: adminFormState.status as any
       };
       addAdminAccount(newAdmin);
@@ -375,6 +404,11 @@ export const AdminCMSModal: React.FC = () => {
   };
 
   const handleEditAdmin = (admin: AdminAccount) => {
+    const isSuperAdmin = currentAdmin?.role === 'Super Admin' || currentAdmin?.username?.toLowerCase() === 'kandorpo';
+    if (!isSuperAdmin && currentAdmin?.id !== admin.id) {
+      showStatus('Unauthorized access: Only Super Admins can edit other administrator profiles.');
+      return;
+    }
     setEditingAdmin(admin);
     setAdminFormState({
       fullName: admin.fullName,
@@ -581,6 +615,13 @@ export const AdminCMSModal: React.FC = () => {
                       Security Password
                     </label>
                   </div>
+                  <button
+                    type="button"
+                    onClick={() => setAuthMode('forgot')}
+                    className="text-[10px] text-blue-900 hover:underline font-bold"
+                  >
+                    Forgot Password?
+                  </button>
                   <div className="relative">
                     <input
                       type={showPassword ? 'text' : 'password'}
@@ -626,8 +667,64 @@ export const AdminCMSModal: React.FC = () => {
                   </button>
                 </p>
               </div>
+            </div>
+          ) : authMode === 'forgot' ? (
+            /* Forgot Password Screen */
+            <div className="p-8 sm:p-12 flex flex-col items-center justify-center max-w-md mx-auto text-center my-auto space-y-6 w-full animate-in fade-in zoom-in-95 duration-200">
+              <div className="w-16 h-16 bg-amber-50 text-amber-600 rounded-2xl flex items-center justify-center shadow-inner border border-amber-100">
+                <RefreshCw className="w-8 h-8 text-amber-600" />
+              </div>
 
+              <div className="space-y-2">
+                <h4 className="text-xl font-bold font-heading text-slate-900">
+                  Reset Administrator Password
+                </h4>
+                <p className="text-xs text-slate-600">
+                  Enter your username or registered email address to receive password reset instructions.
+                </p>
+              </div>
 
+              <form onSubmit={(e) => {
+                e.preventDefault();
+                const token = generatePasswordResetToken(forgotUsername);
+                if (token) {
+                    alert(`Password reset token generated: ${token}. In a production app, this would be emailed to the registered address.`);
+                    setAuthMode('login');
+                } else {
+                    alert("Admin account not found.");
+                }
+              }} className="w-full space-y-4 text-left">
+                <div className="space-y-1.5">
+                  <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block">
+                    Username or Admin Email
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. admin or hod@dudhnoicollege.ac.in"
+                    value={forgotUsername}
+                    onChange={(e) => setForgotUsername(e.target.value)}
+                    className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-slate-900 text-sm focus:bg-white focus:ring-2 focus:ring-blue-900 outline-none transition-all"
+                    autoFocus
+                  />
+                </div>
+
+                <button
+                  type="submit"
+                  className="w-full mt-2 py-2.5 bg-blue-900 hover:bg-blue-950 text-white font-bold text-xs rounded-xl shadow-xs transition-colors flex items-center justify-center gap-2 cursor-pointer"
+                >
+                  <Mail className="w-4 h-4 text-amber-400" />
+                  <span>Send Reset Instructions</span>
+                </button>
+                
+                <button
+                  type="button"
+                  onClick={() => setAuthMode('login')}
+                  className="w-full py-2 text-slate-500 font-bold text-xs hover:text-slate-900 cursor-pointer"
+                >
+                  Back to Login
+                </button>
+              </form>
             </div>
           ) : (
             /* Register Screen */
@@ -955,6 +1052,18 @@ export const AdminCMSModal: React.FC = () => {
               </button>
 
               <button
+                onClick={() => setActiveTab('footer')}
+                className={`px-3 py-2 rounded-xl font-bold flex items-center gap-2 text-left whitespace-nowrap transition-colors cursor-pointer ${
+                  activeTab === 'footer'
+                    ? 'bg-blue-900 text-white shadow-2xs'
+                    : 'text-slate-700 hover:bg-slate-200'
+                }`}
+              >
+                <PanelBottom className="w-4 h-4 shrink-0 text-amber-500" />
+                <span>Footer & Links</span>
+              </button>
+
+              <button
                 onClick={() => setActiveTab('admins')}
                 className={`px-3 py-2 rounded-xl font-bold flex items-center gap-2 text-left whitespace-nowrap transition-colors cursor-pointer mt-auto border-t border-slate-200 pt-3 ${
                   activeTab === 'admins'
@@ -1006,24 +1115,6 @@ export const AdminCMSModal: React.FC = () => {
                         type="text"
                         value={generalForm.college}
                         onChange={(e) => setGeneralForm({ ...generalForm, college: e.target.value })}
-                        className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl outline-none focus:bg-white focus:ring-2 focus:ring-blue-900"
-                      />
-                    </div>
-                    <div>
-                      <label className="block font-bold text-slate-700 mb-1">University Affiliation</label>
-                      <input
-                        type="text"
-                        value={generalForm.affiliation}
-                        onChange={(e) => setGeneralForm({ ...generalForm, affiliation: e.target.value })}
-                        className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl outline-none focus:bg-white focus:ring-2 focus:ring-blue-900"
-                      />
-                    </div>
-                    <div>
-                      <label className="block font-bold text-slate-700 mb-1">NAAC Accreditation Grade</label>
-                      <input
-                        type="text"
-                        value={generalForm.accreditation}
-                        onChange={(e) => setGeneralForm({ ...generalForm, accreditation: e.target.value })}
                         className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl outline-none focus:bg-white focus:ring-2 focus:ring-blue-900"
                       />
                     </div>
@@ -1178,6 +1269,72 @@ export const AdminCMSModal: React.FC = () => {
                       className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl outline-none focus:bg-white focus:ring-2 focus:ring-blue-900"
                     ></textarea>
                   </div>
+
+                  {/* Mission Statements Editor */}
+                  <div className="border border-slate-200 rounded-xl p-4 bg-slate-50/50 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <label className="block font-bold text-slate-800">Department Mission Statements</label>
+                        <p className="text-[11px] text-slate-500">Each statement appears as a bullet point in the "Our Mission" card.</p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const currentMission = Array.isArray(generalForm.mission)
+                            ? generalForm.mission
+                            : typeof generalForm.mission === 'string'
+                            ? (generalForm.mission as string).split('\n').filter(Boolean)
+                            : [];
+                          setGeneralForm({
+                            ...generalForm,
+                            mission: [...currentMission, 'New department mission statement...']
+                          });
+                        }}
+                        className="px-3 py-1.5 bg-blue-900 hover:bg-blue-950 text-white rounded-lg font-bold text-xs flex items-center gap-1 cursor-pointer transition-colors shadow-2xs"
+                      >
+                        <Plus className="w-3.5 h-3.5" />
+                        <span>Add Mission Point</span>
+                      </button>
+                    </div>
+
+                    <div className="space-y-2">
+                      {(Array.isArray(generalForm.mission) ? generalForm.mission : []).map((m, mIdx) => (
+                        <div key={mIdx} className="flex items-start gap-2 bg-white p-2.5 rounded-lg border border-slate-200">
+                          <span className="w-5 h-5 rounded-full bg-slate-100 text-slate-600 font-bold text-[10px] flex items-center justify-center shrink-0 mt-1">
+                            {mIdx + 1}
+                          </span>
+                          <textarea
+                            rows={2}
+                            value={m}
+                            onChange={(e) => {
+                              const updatedMission = [...(generalForm.mission || [])];
+                              updatedMission[mIdx] = e.target.value;
+                              setGeneralForm({ ...generalForm, mission: updatedMission });
+                            }}
+                            className="flex-1 px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-md outline-none focus:bg-white focus:ring-1 focus:ring-blue-900 text-xs"
+                            placeholder={`Mission point ${mIdx + 1}...`}
+                          />
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const updatedMission = (generalForm.mission || []).filter((_, i) => i !== mIdx);
+                              setGeneralForm({ ...generalForm, mission: updatedMission });
+                            }}
+                            className="p-1 text-slate-400 hover:text-red-600 rounded cursor-pointer transition-colors mt-1"
+                            title="Delete point"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      ))}
+
+                      {(!generalForm.mission || generalForm.mission.length === 0) && (
+                        <div className="p-3 text-center border border-dashed border-slate-200 rounded-lg text-slate-400 text-xs">
+                          No mission points added. Click "Add Mission Point" above.
+                        </div>
+                      )}
+                    </div>
+                  </div>
                   <div>
                     <label className="block font-bold text-slate-700 mb-1">About Department Overview (Paragraph 1)</label>
                     <textarea
@@ -1248,6 +1405,87 @@ export const AdminCMSModal: React.FC = () => {
                           </div>
                         )}
                       </div>
+                    </div>
+                  </div>
+
+                  {/* Editable Departmental Facilities */}
+                  <div className="border-t border-slate-200 pt-5 mt-5 space-y-4">
+                    <div className="flex items-center justify-between">
+                      <h5 className="text-xs font-bold text-slate-900 uppercase tracking-wider flex items-center gap-1.5">
+                        <Building2 className="w-4 h-4 text-blue-900" />
+                        <span>Departmental Facilities & Infrastructure ({ (generalForm.facilities || []).length })</span>
+                      </h5>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const updatedFacilities = [
+                            ...(generalForm.facilities || []),
+                            { name: 'New Facility', desc: 'Description of the facility...' }
+                          ];
+                          setGeneralForm({ ...generalForm, facilities: updatedFacilities });
+                        }}
+                        className="px-3 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-900 border border-blue-200 rounded-lg font-semibold flex items-center gap-1 cursor-pointer active:scale-95 transition-all"
+                      >
+                        <Plus className="w-3.5 h-3.5" />
+                        <span>Add Facility</span>
+                      </button>
+                    </div>
+
+                    <div className="space-y-3">
+                      {(generalForm.facilities || []).map((fac, idx) => (
+                        <div key={idx} className="p-4 rounded-xl bg-slate-50 border border-slate-200/80 space-y-2 relative group/item">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const updatedFacilities = (generalForm.facilities || []).filter((_, i) => i !== idx);
+                              setGeneralForm({ ...generalForm, facilities: updatedFacilities });
+                            }}
+                            className="absolute top-3 right-3 p-1.5 bg-rose-50 text-rose-600 hover:bg-rose-100 rounded-lg cursor-pointer transition-colors active:scale-95 animate-in fade-in"
+                            title="Remove Facility"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+
+                          <div className="grid grid-cols-1 md:grid-cols-3 gap-3 pr-8">
+                            <div className="md:col-span-1">
+                              <label className="block font-bold text-slate-700 mb-1">Facility Name</label>
+                              <input
+                                type="text"
+                                value={fac.name}
+                                onChange={(e) => {
+                                  const updatedFacilities = (generalForm.facilities || []).map((f, i) =>
+                                    i === idx ? { ...f, name: e.target.value } : f
+                                  );
+                                  setGeneralForm({ ...generalForm, facilities: updatedFacilities });
+                                }}
+                                placeholder="e.g. Smart Lecture Room"
+                                className="w-full px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg outline-none text-xs focus:ring-1 focus:ring-blue-900"
+                              />
+                            </div>
+                            <div className="md:col-span-2">
+                              <label className="block font-bold text-slate-700 mb-1">Description</label>
+                              <input
+                                type="text"
+                                value={fac.desc}
+                                onChange={(e) => {
+                                  const updatedFacilities = (generalForm.facilities || []).map((f, i) =>
+                                    i === idx ? { ...f, desc: e.target.value } : f
+                                  );
+                                  setGeneralForm({ ...generalForm, facilities: updatedFacilities });
+                                }}
+                                placeholder="Details about this facility..."
+                                className="w-full px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg outline-none text-xs focus:ring-1 focus:ring-blue-900"
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+
+                      {(generalForm.facilities || []).length === 0 && (
+                        <div className="p-6 text-center border border-dashed border-slate-200 rounded-xl text-slate-400">
+                          No facilities added. Click "Add Facility" to start listing your infrastructure.
+                        </div>
+                      )}
                     </div>
                   </div>
                 </form>
@@ -1768,6 +2006,7 @@ export const AdminCMSModal: React.FC = () => {
                   onAddStudent={addDepartmentStudent}
                   onUpdateStudent={updateDepartmentStudent}
                   onDeleteStudent={deleteDepartmentStudent}
+                  onBulkDeleteStudents={deleteMultipleDepartmentStudents}
                   onBulkImport={bulkImportDepartmentStudents}
                   showStatus={showStatus}
                 />
@@ -1877,6 +2116,76 @@ export const AdminCMSModal: React.FC = () => {
                             placeholder="DC/MATH/2026/..."
                             className="w-full px-3 py-1.5 bg-white border border-slate-300 rounded-lg outline-none"
                           />
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div>
+                          <label className="font-bold text-slate-700 block mb-1">Publisher Name</label>
+                          <input
+                            type="text"
+                            value={editingNotice.publisherName || ''}
+                            onChange={(e) =>
+                              setEditingNotice({ ...editingNotice, publisherName: e.target.value })
+                            }
+                            placeholder="e.g. Dr. Mukul Chandra Kalita"
+                            className="w-full px-3 py-1.5 bg-white border border-slate-300 rounded-lg outline-none"
+                          />
+                        </div>
+                        <div>
+                          <label className="font-bold text-slate-700 block mb-1">External Link / URL (Option B)</label>
+                          <input
+                            type="text"
+                            value={editingNotice.externalLink || ''}
+                            onChange={(e) =>
+                              setEditingNotice({ ...editingNotice, externalLink: e.target.value })
+                            }
+                            placeholder="https://example.com/notice"
+                            className="w-full px-3 py-1.5 bg-white border border-slate-300 rounded-lg outline-none"
+                          />
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className="font-bold text-slate-700 block mb-1">Notice Document / PDF Upload (Option A)</label>
+                        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+                          <input
+                            type="text"
+                            value={editingNotice.downloadUrl || ''}
+                            onChange={(e) =>
+                              setEditingNotice({ ...editingNotice, downloadUrl: e.target.value })
+                            }
+                            placeholder="PDF Data URI or link"
+                            className="flex-1 px-3 py-1.5 bg-white border border-slate-300 rounded-lg outline-none"
+                          />
+                          <input
+                            type="file"
+                            accept=".pdf,application/pdf"
+                            onChange={(e) => {
+                              const file = e.target.files?.[0];
+                              if (file) {
+                                const reader = new FileReader();
+                                reader.onload = (ev) => {
+                                  const dataUrl = ev.target?.result as string;
+                                  setEditingNotice({
+                                    ...editingNotice,
+                                    downloadUrl: dataUrl,
+                                    fileSize: `${(file.size / 1024).toFixed(1)} KB (PDF)`
+                                  });
+                                  showStatus(`${file.name} uploaded successfully.`);
+                                };
+                                reader.readAsDataURL(file);
+                              }
+                            }}
+                            className="hidden"
+                            id="notice-pdf-upload"
+                          />
+                          <label
+                            htmlFor="notice-pdf-upload"
+                            className="px-4 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold border border-slate-300 rounded-lg cursor-pointer text-center"
+                          >
+                            Upload PDF
+                          </label>
                         </div>
                       </div>
 
@@ -2063,6 +2372,63 @@ export const AdminCMSModal: React.FC = () => {
                         </div>
                       </div>
 
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div>
+                          <label className="font-bold text-slate-700 block mb-1">External Link / URL (Option B)</label>
+                          <input
+                            type="text"
+                            value={editingEvent.externalLink || ''}
+                            onChange={(e) =>
+                              setEditingEvent({ ...editingEvent, externalLink: e.target.value })
+                            }
+                            placeholder="https://example.com/event-info"
+                            className="w-full px-3 py-1.5 bg-white border border-slate-300 rounded-lg outline-none"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="font-bold text-slate-700 block mb-1">Event Document / PDF Upload (Option A)</label>
+                          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+                            <input
+                              type="text"
+                              value={editingEvent.downloadUrl || ''}
+                              onChange={(e) =>
+                                setEditingEvent({ ...editingEvent, downloadUrl: e.target.value })
+                              }
+                              placeholder="PDF Data URI or link"
+                              className="flex-1 px-3 py-1.5 bg-white border border-slate-300 rounded-lg outline-none"
+                            />
+                            <input
+                              type="file"
+                              accept=".pdf,application/pdf"
+                              onChange={(e) => {
+                                const file = e.target.files?.[0];
+                                if (file) {
+                                  const reader = new FileReader();
+                                  reader.onload = (ev) => {
+                                    const dataUrl = ev.target?.result as string;
+                                    setEditingEvent({
+                                      ...editingEvent,
+                                      downloadUrl: dataUrl
+                                    });
+                                    showStatus(`${file.name} uploaded successfully.`);
+                                  };
+                                  reader.readAsDataURL(file);
+                                }
+                              }}
+                              className="hidden"
+                              id="event-pdf-upload"
+                            />
+                            <label
+                              htmlFor="event-pdf-upload"
+                              className="px-4 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold border border-slate-300 rounded-lg cursor-pointer text-center whitespace-nowrap"
+                            >
+                              Upload PDF
+                            </label>
+                          </div>
+                        </div>
+                      </div>
+
                       <div className="flex justify-end pt-2">
                         <button
                           type="button"
@@ -2219,7 +2585,7 @@ export const AdminCMSModal: React.FC = () => {
                         </div>
                       </div>
 
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                         <div>
                           <label className="font-bold text-slate-700 block mb-1">Course Type</label>
                           <select
@@ -2244,6 +2610,16 @@ export const AdminCMSModal: React.FC = () => {
                             className="w-full px-3 py-1.5 bg-white border border-slate-300 rounded-lg outline-none"
                           />
                         </div>
+                        <div>
+                          <label className="font-bold text-slate-700 block mb-1">Academic Level Detail (e.g. ITEP / FYUGP)</label>
+                          <input
+                            type="text"
+                            value={editingCourse.academicLevel || ''}
+                            onChange={(e) => setEditingCourse({ ...editingCourse, academicLevel: e.target.value })}
+                            placeholder="e.g. ITEP"
+                            className="w-full px-3 py-1.5 bg-white border border-slate-300 rounded-lg outline-none"
+                          />
+                        </div>
                       </div>
 
                       <div>
@@ -2254,6 +2630,63 @@ export const AdminCMSModal: React.FC = () => {
                           onChange={(e) => setEditingCourse({ ...editingCourse, description: e.target.value })}
                           className="w-full px-3 py-1.5 bg-white border border-slate-300 rounded-lg outline-none"
                         ></textarea>
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div>
+                          <label className="font-bold text-slate-700 block mb-1">External Link / URL (Option B)</label>
+                          <input
+                            type="text"
+                            value={editingCourse.externalLink || ''}
+                            onChange={(e) =>
+                              setEditingCourse({ ...editingCourse, externalLink: e.target.value })
+                            }
+                            placeholder="https://example.com/course-syllabus"
+                            className="w-full px-3 py-1.5 bg-white border border-slate-300 rounded-lg outline-none"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="font-bold text-slate-700 block mb-1">Syllabus Document / PDF Upload (Option A)</label>
+                          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+                            <input
+                              type="text"
+                              value={editingCourse.downloadUrl || ''}
+                              onChange={(e) =>
+                                setEditingCourse({ ...editingCourse, downloadUrl: e.target.value })
+                              }
+                              placeholder="PDF Data URI or link"
+                              className="flex-1 px-3 py-1.5 bg-white border border-slate-300 rounded-lg outline-none"
+                            />
+                            <input
+                              type="file"
+                              accept=".pdf,application/pdf"
+                              onChange={(e) => {
+                                const file = e.target.files?.[0];
+                                if (file) {
+                                  const reader = new FileReader();
+                                  reader.onload = (ev) => {
+                                    const dataUrl = ev.target?.result as string;
+                                    setEditingCourse({
+                                      ...editingCourse,
+                                      downloadUrl: dataUrl
+                                    });
+                                    showStatus(`${file.name} uploaded successfully.`);
+                                  };
+                                  reader.readAsDataURL(file);
+                                }
+                              }}
+                              className="hidden"
+                              id="course-pdf-upload"
+                            />
+                            <label
+                              htmlFor="course-pdf-upload"
+                              className="px-4 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold border border-slate-300 rounded-lg cursor-pointer text-center whitespace-nowrap"
+                            >
+                              Upload PDF
+                            </label>
+                          </div>
+                        </div>
                       </div>
 
                       <div className="flex justify-end pt-2">
@@ -2484,6 +2917,112 @@ export const AdminCMSModal: React.FC = () => {
                             type="text"
                             value={editingPublication.impactFactor || ''}
                             onChange={(e) => setEditingPublication({ ...editingPublication, impactFactor: e.target.value })}
+                            className="w-full px-3 py-1.5 bg-white border border-slate-300 rounded-lg outline-none"
+                          />
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div>
+                          <label className="font-bold text-slate-700 block mb-1">DOI Code</label>
+                          <input
+                            type="text"
+                            value={editingPublication.doi || ''}
+                            onChange={(e) => setEditingPublication({ ...editingPublication, doi: e.target.value })}
+                            placeholder="e.g. 10.1007/s00010-025-0112"
+                            className="w-full px-3 py-1.5 bg-white border border-slate-300 rounded-lg outline-none"
+                          />
+                        </div>
+                        <div>
+                          <label className="font-bold text-slate-700 block mb-1">Paper Link / External URL</label>
+                          <input
+                            type="text"
+                            value={editingPublication.paperLink || ''}
+                            onChange={(e) => setEditingPublication({ ...editingPublication, paperLink: e.target.value })}
+                            placeholder="e.g. https://scopus.com/info or PDF link"
+                            className="w-full px-3 py-1.5 bg-white border border-slate-300 rounded-lg outline-none"
+                          />
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className="font-bold text-slate-700 block mb-1">Upload Citation PDF</label>
+                        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+                          <input
+                            type="text"
+                            value={editingPublication.pdfUrl || ''}
+                            onChange={(e) =>
+                              setEditingPublication({ ...editingPublication, pdfUrl: e.target.value })
+                            }
+                            placeholder="PDF Data URI or direct PDF link"
+                            className="flex-1 px-3 py-1.5 bg-white border border-slate-300 rounded-lg outline-none"
+                          />
+                          <input
+                            type="file"
+                            accept=".pdf,application/pdf"
+                            onChange={(e) => {
+                              const file = e.target.files?.[0];
+                              if (file) {
+                                const reader = new FileReader();
+                                reader.onload = (ev) => {
+                                  const dataUrl = ev.target?.result as string;
+                                  setEditingPublication({
+                                    ...editingPublication,
+                                    pdfUrl: dataUrl
+                                  });
+                                  showStatus(`${file.name} uploaded successfully.`);
+                                };
+                                reader.readAsDataURL(file);
+                              }
+                            }}
+                            className="hidden"
+                            id="pub-pdf-upload"
+                          />
+                          <label
+                            htmlFor="pub-pdf-upload"
+                            className="px-4 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold border border-slate-300 rounded-lg cursor-pointer text-center whitespace-nowrap"
+                          >
+                            Upload PDF
+                          </label>
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
+                        <div>
+                          <label className="font-bold text-slate-700 block mb-1">H-Index</label>
+                          <input
+                            type="text"
+                            value={editingPublication.hIndex || ''}
+                            onChange={(e) => setEditingPublication({ ...editingPublication, hIndex: e.target.value })}
+                            placeholder="e.g. 12"
+                            className="w-full px-3 py-1.5 bg-white border border-slate-300 rounded-lg outline-none"
+                          />
+                        </div>
+                        <div>
+                          <label className="font-bold text-slate-700 block mb-1">i10-Index</label>
+                          <input
+                            type="text"
+                            value={editingPublication.i10Index || ''}
+                            onChange={(e) => setEditingPublication({ ...editingPublication, i10Index: e.target.value })}
+                            placeholder="e.g. 15"
+                            className="w-full px-3 py-1.5 bg-white border border-slate-300 rounded-lg outline-none"
+                          />
+                        </div>
+                        <div>
+                          <label className="font-bold text-slate-700 block mb-1">Scopus ID</label>
+                          <input
+                            type="text"
+                            value={editingPublication.scopusId || ''}
+                            onChange={(e) => setEditingPublication({ ...editingPublication, scopusId: e.target.value })}
+                            placeholder="e.g. 57204928300"
+                            className="w-full px-3 py-1.5 bg-white border border-slate-300 rounded-lg outline-none"
+                          />
+                        </div>
+                        <div>
+                          <label className="font-bold text-slate-700 block mb-1">Specialisation</label>
+                          <input
+                            type="text"
+                            value={editingPublication.specialisation || ''}
+                            onChange={(e) => setEditingPublication({ ...editingPublication, specialisation: e.target.value })}
+                            placeholder="e.g. Number Theory"
                             className="w-full px-3 py-1.5 bg-white border border-slate-300 rounded-lg outline-none"
                           />
                         </div>
@@ -3128,9 +3667,346 @@ export const AdminCMSModal: React.FC = () => {
                 </div>
               )}
 
+              {/* TAB: Footer Section & Links */}
+              {activeTab === 'footer' && (
+                <form onSubmit={handleSaveGeneralInfo} className="space-y-6 text-xs">
+                  <div className="flex items-center justify-between border-b border-slate-200 pb-3">
+                    <div>
+                      <h4 className="text-base font-bold text-slate-900 font-heading">
+                        Footer & Navigation Links Settings
+                      </h4>
+                      <p className="text-slate-500 text-[11px]">
+                        Customize the website footer tagline, accreditation badges, desk contact details, copyright, and link columns.
+                      </p>
+                    </div>
+                    <button
+                      type="submit"
+                      className="px-4 py-2 bg-blue-900 hover:bg-blue-950 text-white font-bold rounded-xl flex items-center gap-1.5 shadow-xs cursor-pointer"
+                    >
+                      <Save className="w-4 h-4 text-amber-400" />
+                      <span>Save Footer Changes</span>
+                    </button>
+                  </div>
 
+                  {/* Section 1: Column 1 - Branding & Tagline */}
+                  <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl space-y-4">
+                    <h5 className="font-bold text-slate-900 text-sm flex items-center gap-2">
+                      <span className="w-2 h-2 rounded-full bg-blue-900"></span>
+                      Column 1: Department Overview & Badges
+                    </h5>
 
-              {/* TAB 11: Admin Accounts Management */}
+                    <div>
+                      <label className="block font-bold text-slate-700 mb-1">Footer Tagline / Department Mission Summary</label>
+                      <textarea
+                        rows={3}
+                        value={generalForm.footerTagline ?? ''}
+                        onChange={(e) => setGeneralForm({ ...generalForm, footerTagline: e.target.value })}
+                        className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl outline-none focus:ring-2 focus:ring-blue-900"
+                        placeholder="Dedicated to academic distinction, foundational proofs..."
+                      />
+                    </div>
+
+                    <div>
+                      <div className="flex items-center justify-between mb-2">
+                        <label className="block font-bold text-slate-700">Accreditation & Affiliation Badges</label>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const cur = generalForm.footerBadges || ['Affiliated to GU', 'NAAC Grade A', 'UGC 2(f) & 12(B)'];
+                            setGeneralForm({ ...generalForm, footerBadges: [...cur, 'New Badge'] });
+                          }}
+                          className="text-[11px] font-bold text-blue-900 hover:text-blue-950 flex items-center gap-1 cursor-pointer"
+                        >
+                          <Plus className="w-3.5 h-3.5" />
+                          <span>Add Badge</span>
+                        </button>
+                      </div>
+                      <div className="space-y-2">
+                        {(generalForm.footerBadges || ['Affiliated to GU', 'NAAC Grade A', 'UGC 2(f) & 12(B)']).map((badge, idx) => (
+                          <div key={idx} className="flex items-center gap-2">
+                            <input
+                              type="text"
+                              value={badge}
+                              onChange={(e) => {
+                                const cur = [...(generalForm.footerBadges || ['Affiliated to GU', 'NAAC Grade A', 'UGC 2(f) & 12(B)'])];
+                                cur[idx] = e.target.value;
+                                setGeneralForm({ ...generalForm, footerBadges: cur });
+                              }}
+                              className="flex-1 px-3 py-1.5 bg-white border border-slate-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-900"
+                              placeholder="e.g. NAAC Grade A"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const cur = (generalForm.footerBadges || ['Affiliated to GU', 'NAAC Grade A', 'UGC 2(f) & 12(B)']).filter((_, i) => i !== idx);
+                                setGeneralForm({ ...generalForm, footerBadges: cur });
+                              }}
+                              className="p-1.5 text-slate-400 hover:text-red-600 rounded cursor-pointer"
+                              title="Delete badge"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Section 2: Column 2 - Department Navigation (Quick Links) */}
+                  <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl space-y-4">
+                    <div className="flex items-center justify-between">
+                      <h5 className="font-bold text-slate-900 text-sm flex items-center gap-2">
+                        <span className="w-2 h-2 rounded-full bg-blue-900"></span>
+                        Column 2: Department Navigation Links
+                      </h5>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const cur: FooterLink[] = generalForm.footerQuickLinks || [
+                            { id: 'fl-1', name: 'Home Overview', url: '#home' },
+                            { id: 'fl-2', name: 'About Department', url: '#about' },
+                            { id: 'fl-3', name: 'Faculty Directory', url: '#faculty' },
+                            { id: 'fl-4', name: 'Undergraduate & PG Courses', url: '#courses' },
+                            { id: 'fl-5', name: 'Research Thrust Areas', url: '#research' },
+                            { id: 'fl-6', name: 'Upcoming Events & Seminars', url: '#events' },
+                            { id: 'fl-7', name: 'Department Notices & Routine', url: '#notices' },
+                            { id: 'fl-8', name: 'Student & Faculty Accolades', url: '#achievements' },
+                            { id: 'fl-9', name: 'Photo & Magazine Gallery', url: '#gallery' },
+                            { id: 'fl-10', name: 'Contact & Office Hours', url: '#contact' },
+                          ];
+                          setGeneralForm({
+                            ...generalForm,
+                            footerQuickLinks: [...cur, { id: `fl-${Date.now()}`, name: 'New Section Link', url: '#home' }]
+                          });
+                        }}
+                        className="text-[11px] font-bold text-blue-900 hover:text-blue-950 flex items-center gap-1 cursor-pointer"
+                      >
+                        <Plus className="w-3.5 h-3.5" />
+                        <span>Add Quick Link</span>
+                      </button>
+                    </div>
+
+                    <div className="space-y-2">
+                      {(generalForm.footerQuickLinks || [
+                        { id: 'fl-1', name: 'Home Overview', url: '#home' },
+                        { id: 'fl-2', name: 'About Department', url: '#about' },
+                        { id: 'fl-3', name: 'Faculty Directory', url: '#faculty' },
+                        { id: 'fl-4', name: 'Undergraduate & PG Courses', url: '#courses' },
+                        { id: 'fl-5', name: 'Research Thrust Areas', url: '#research' },
+                        { id: 'fl-6', name: 'Upcoming Events & Seminars', url: '#events' },
+                        { id: 'fl-7', name: 'Department Notices & Routine', url: '#notices' },
+                        { id: 'fl-8', name: 'Student & Faculty Accolades', url: '#achievements' },
+                        { id: 'fl-9', name: 'Photo & Magazine Gallery', url: '#gallery' },
+                        { id: 'fl-10', name: 'Contact & Office Hours', url: '#contact' },
+                      ]).map((link, idx) => (
+                        <div key={link.id || idx} className="grid grid-cols-1 sm:grid-cols-12 gap-2 items-center bg-white p-2.5 rounded-xl border border-slate-200">
+                          <div className="sm:col-span-5">
+                            <label className="text-[10px] text-slate-500 block">Link Title</label>
+                            <input
+                              type="text"
+                              value={link.name}
+                              onChange={(e) => {
+                                const cur = [...(generalForm.footerQuickLinks || [])];
+                                cur[idx] = { ...cur[idx], name: e.target.value };
+                                setGeneralForm({ ...generalForm, footerQuickLinks: cur });
+                              }}
+                              className="w-full px-2.5 py-1 bg-slate-50 border border-slate-200 rounded-lg outline-none text-xs"
+                              placeholder="Title"
+                            />
+                          </div>
+                          <div className="sm:col-span-6">
+                            <label className="text-[10px] text-slate-500 block">Section ID / URL</label>
+                            <input
+                              type="text"
+                              value={link.url}
+                              onChange={(e) => {
+                                const cur = [...(generalForm.footerQuickLinks || [])];
+                                cur[idx] = { ...cur[idx], url: e.target.value };
+                                setGeneralForm({ ...generalForm, footerQuickLinks: cur });
+                              }}
+                              className="w-full px-2.5 py-1 bg-slate-50 border border-slate-200 rounded-lg outline-none text-xs font-mono"
+                              placeholder="#about, #faculty, etc."
+                            />
+                          </div>
+                          <div className="sm:col-span-1 flex justify-end">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const cur = (generalForm.footerQuickLinks || []).filter((_, i) => i !== idx);
+                                setGeneralForm({ ...generalForm, footerQuickLinks: cur });
+                              }}
+                              className="p-1.5 text-slate-400 hover:text-red-600 rounded cursor-pointer"
+                              title="Delete Link"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Section 3: Column 3 - Academic & Higher Portals */}
+                  <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl space-y-4">
+                    <div className="flex items-center justify-between">
+                      <h5 className="font-bold text-slate-900 text-sm flex items-center gap-2">
+                        <span className="w-2 h-2 rounded-full bg-blue-900"></span>
+                        Column 3: Academic & External Portals
+                      </h5>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const cur: FooterLink[] = generalForm.footerAcademicLinks || [
+                            { id: 'al-1', name: 'Dudhnoi College Official Portal', url: 'https://dudhnoicollege.ac.in', isExternal: true },
+                            { id: 'al-2', name: 'Gauhati University Examination Portal', url: 'https://gauhati.ac.in', isExternal: true },
+                            { id: 'al-3', name: 'Assam Academy of Mathematics (AAM)', url: 'https://aam.org.in', isExternal: true },
+                            { id: 'al-4', name: 'National Board for Higher Mathematics (NBHM)', url: 'https://www.nbhm.dae.gov.in', isExternal: true },
+                            { id: 'al-5', name: 'University Grants Commission (UGC)', url: 'https://ugc.gov.in', isExternal: true },
+                            { id: 'al-6', name: 'SWAYAM / NPTEL Mathematics Courses', url: 'https://nptel.ac.in', isExternal: true },
+                            { id: 'al-7', name: 'Ramanujan Mathematical Society', url: 'https://www.ramanujanmathsociety.org', isExternal: true },
+                            { id: 'al-8', name: 'DST-SERB Mathematical Sciences', url: 'https://serb.gov.in', isExternal: true },
+                          ];
+                          setGeneralForm({
+                            ...generalForm,
+                            footerAcademicLinks: [...cur, { id: `al-${Date.now()}`, name: 'External Portal Name', url: 'https://example.com', isExternal: true }]
+                          });
+                        }}
+                        className="text-[11px] font-bold text-blue-900 hover:text-blue-950 flex items-center gap-1 cursor-pointer"
+                      >
+                        <Plus className="w-3.5 h-3.5" />
+                        <span>Add External Portal</span>
+                      </button>
+                    </div>
+
+                    <div className="space-y-2">
+                      {(generalForm.footerAcademicLinks || [
+                        { id: 'al-1', name: 'Dudhnoi College Official Portal', url: 'https://dudhnoicollege.ac.in', isExternal: true },
+                        { id: 'al-2', name: 'Gauhati University Examination Portal', url: 'https://gauhati.ac.in', isExternal: true },
+                        { id: 'al-3', name: 'Assam Academy of Mathematics (AAM)', url: 'https://aam.org.in', isExternal: true },
+                        { id: 'al-4', name: 'National Board for Higher Mathematics (NBHM)', url: 'https://www.nbhm.dae.gov.in', isExternal: true },
+                        { id: 'al-5', name: 'University Grants Commission (UGC)', url: 'https://ugc.gov.in', isExternal: true },
+                        { id: 'al-6', name: 'SWAYAM / NPTEL Mathematics Courses', url: 'https://nptel.ac.in', isExternal: true },
+                        { id: 'al-7', name: 'Ramanujan Mathematical Society', url: 'https://www.ramanujanmathsociety.org', isExternal: true },
+                        { id: 'al-8', name: 'DST-SERB Mathematical Sciences', url: 'https://serb.gov.in', isExternal: true },
+                      ]).map((link, idx) => (
+                        <div key={link.id || idx} className="grid grid-cols-1 sm:grid-cols-12 gap-2 items-center bg-white p-2.5 rounded-xl border border-slate-200">
+                          <div className="sm:col-span-5">
+                            <label className="text-[10px] text-slate-500 block">Portal Name</label>
+                            <input
+                              type="text"
+                              value={link.name}
+                              onChange={(e) => {
+                                const cur = [...(generalForm.footerAcademicLinks || [])];
+                                cur[idx] = { ...cur[idx], name: e.target.value };
+                                setGeneralForm({ ...generalForm, footerAcademicLinks: cur });
+                              }}
+                              className="w-full px-2.5 py-1 bg-slate-50 border border-slate-200 rounded-lg outline-none text-xs"
+                              placeholder="Title"
+                            />
+                          </div>
+                          <div className="sm:col-span-6">
+                            <label className="text-[10px] text-slate-500 block">External Link URL</label>
+                            <input
+                              type="text"
+                              value={link.url}
+                              onChange={(e) => {
+                                const cur = [...(generalForm.footerAcademicLinks || [])];
+                                cur[idx] = { ...cur[idx], url: e.target.value };
+                                setGeneralForm({ ...generalForm, footerAcademicLinks: cur });
+                              }}
+                              className="w-full px-2.5 py-1 bg-slate-50 border border-slate-200 rounded-lg outline-none text-xs font-mono"
+                              placeholder="https://..."
+                            />
+                          </div>
+                          <div className="sm:col-span-1 flex justify-end">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const cur = (generalForm.footerAcademicLinks || []).filter((_, i) => i !== idx);
+                                setGeneralForm({ ...generalForm, footerAcademicLinks: cur });
+                              }}
+                              className="p-1.5 text-slate-400 hover:text-red-600 rounded cursor-pointer"
+                              title="Delete Link"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Section 4: Column 4 - Department Desk & Secretariat */}
+                  <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl space-y-4">
+                    <h5 className="font-bold text-slate-900 text-sm flex items-center gap-2">
+                      <span className="w-2 h-2 rounded-full bg-blue-900"></span>
+                      Column 4: Department Desk & Physical Address
+                    </h5>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block font-bold text-slate-700 mb-1">Desk Heading</label>
+                        <input
+                          type="text"
+                          value={generalForm.footerDeskTitle ?? ''}
+                          onChange={(e) => setGeneralForm({ ...generalForm, footerDeskTitle: e.target.value })}
+                          className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl outline-none focus:ring-2 focus:ring-blue-900"
+                          placeholder="Department Desk"
+                        />
+                      </div>
+                      <div>
+                        <label className="block font-bold text-slate-700 mb-1">Desk Phone Number</label>
+                        <input
+                          type="text"
+                          value={generalForm.footerPhone ?? ''}
+                          onChange={(e) => setGeneralForm({ ...generalForm, footerPhone: e.target.value })}
+                          className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl outline-none focus:ring-2 focus:ring-blue-900"
+                          placeholder="+91 (03663) 281432"
+                        />
+                      </div>
+                      <div className="sm:col-span-2">
+                        <label className="block font-bold text-slate-700 mb-1">Desk Email Address</label>
+                        <input
+                          type="email"
+                          value={generalForm.footerEmail ?? ''}
+                          onChange={(e) => setGeneralForm({ ...generalForm, footerEmail: e.target.value })}
+                          className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl outline-none focus:ring-2 focus:ring-blue-900"
+                          placeholder="mathematics@dudhnoicollege.ac.in"
+                        />
+                      </div>
+                      <div className="sm:col-span-2">
+                        <label className="block font-bold text-slate-700 mb-1">Desk Physical Address</label>
+                        <input
+                          type="text"
+                          value={generalForm.footerAddress ?? ''}
+                          onChange={(e) => setGeneralForm({ ...generalForm, footerAddress: e.target.value })}
+                          className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl outline-none focus:ring-2 focus:ring-blue-900"
+                          placeholder="Science Block, Dudhnoi College, Goalpara - 783124, Assam"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Section 5: Bottom Copyright Bar */}
+                  <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl space-y-4">
+                    <h5 className="font-bold text-slate-900 text-sm flex items-center gap-2">
+                      <span className="w-2 h-2 rounded-full bg-blue-900"></span>
+                      Footer Bottom Copyright Notice
+                    </h5>
+
+                    <div>
+                      <label className="block font-bold text-slate-700 mb-1">Copyright Line</label>
+                      <input
+                        type="text"
+                        value={generalForm.footerCopyright ?? ''}
+                        onChange={(e) => setGeneralForm({ ...generalForm, footerCopyright: e.target.value })}
+                        className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl outline-none focus:ring-2 focus:ring-blue-900"
+                        placeholder="© 2026 Department of Mathematics, Dudhnoi College. All Rights Reserved."
+                      />
+                    </div>
+                  </div>
+                </form>
+              )}
               {activeTab === 'admins' && (
                 <div className="space-y-6 text-xs">
                   <div className="flex items-center justify-between border-b border-slate-200 pb-3">
@@ -3142,7 +4018,7 @@ export const AdminCMSModal: React.FC = () => {
                         Register new administrators, update access roles, and monitor system logins.
                       </p>
                     </div>
-                    {!showAdminForm && (
+                    {!showAdminForm && (currentAdmin?.role === 'Super Admin' || currentAdmin?.username?.toLowerCase() === 'kandorpo') && (
                       <button
                         onClick={() => {
                           setEditingAdmin(null);
@@ -3247,7 +4123,8 @@ export const AdminCMSModal: React.FC = () => {
                           <select
                             value={adminFormState.role || 'Department Admin'}
                             onChange={(e) => setAdminFormState({ ...adminFormState, role: e.target.value as any })}
-                            className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl outline-none focus:ring-2 focus:ring-blue-900"
+                            className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl outline-none focus:ring-2 focus:ring-blue-900 disabled:opacity-75 disabled:bg-slate-100"
+                            disabled={!(currentAdmin?.role === 'Super Admin' || currentAdmin?.username?.toLowerCase() === 'kandorpo')}
                           >
                             <option value="Super Admin">Super Admin (All Capabilities)</option>
                             <option value="HOD">HOD (Department Head)</option>
@@ -3260,7 +4137,8 @@ export const AdminCMSModal: React.FC = () => {
                           <select
                             value={adminFormState.status || 'Active'}
                             onChange={(e) => setAdminFormState({ ...adminFormState, status: e.target.value as any })}
-                            className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl outline-none focus:ring-2 focus:ring-blue-900"
+                            className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl outline-none focus:ring-2 focus:ring-blue-900 disabled:opacity-75 disabled:bg-slate-100"
+                            disabled={!(currentAdmin?.role === 'Super Admin' || currentAdmin?.username?.toLowerCase() === 'kandorpo')}
                           >
                             <option value="Active">Active / Approved</option>
                             <option value="Suspended">Suspended / Read-only</option>
@@ -3376,80 +4254,86 @@ export const AdminCMSModal: React.FC = () => {
                       </div>
 
                       {/* Sub-panel 2: List of Active Administrators */}
-                      <div className="space-y-3">
-                        <h5 className="font-bold text-slate-900 text-sm">
-                          Active Department Administrators ({admins?.length || 0})
-                        </h5>
-                        <div className="border border-slate-200 rounded-2xl overflow-hidden bg-white">
-                          <table className="w-full text-left border-collapse">
-                            <thead>
-                              <tr className="bg-slate-50 border-b border-slate-200 text-[10px] text-slate-500 uppercase tracking-wider font-bold">
-                                <th className="py-3 px-4">Full Name & Email</th>
-                                <th className="py-3 px-4">Username</th>
-                                <th className="py-3 px-4">Role</th>
-                                <th className="py-3 px-4">Status</th>
-                                <th className="py-3 px-4">Last Login</th>
-                                <th className="py-3 px-4 text-right">Actions</th>
-                              </tr>
-                            </thead>
-                            <tbody className="divide-y divide-slate-100 text-xs text-slate-700">
-                              {(admins || []).map((adm) => (
-                                <tr key={adm.id} className="hover:bg-slate-50/50">
-                                  <td className="py-3 px-4">
-                                    <div className="font-bold text-slate-900">{adm.fullName}</div>
-                                    <div className="text-slate-500 text-[10px]">{adm.email}</div>
-                                  </td>
-                                  <td className="py-3 px-4 font-mono font-bold text-slate-600">{adm.username}</td>
-                                  <td className="py-3 px-4">
-                                    <span className={`px-2 py-0.5 rounded-full text-[9px] font-bold ${
-                                      adm.role === 'Super Admin' 
-                                        ? 'bg-purple-100 text-purple-800' 
-                                        : adm.role === 'HOD' 
-                                          ? 'bg-indigo-100 text-indigo-800' 
-                                          : 'bg-blue-100 text-blue-800'
-                                    }`}>
-                                      {adm.role}
-                                    </span>
-                                  </td>
-                                  <td className="py-3 px-4">
-                                    <span className={`px-2 py-0.5 rounded-full text-[9px] font-bold ${
-                                      adm.status === 'Active' ? 'bg-emerald-100 text-emerald-800' : 'bg-red-100 text-red-800'
-                                    }`}>
-                                      {adm.status}
-                                    </span>
-                                  </td>
-                                  <td className="py-3 px-4 text-slate-500 font-mono text-[10px]">
-                                    {adm.lastLogin || 'Never logged in'}
-                                  </td>
-                                  <td className="py-3 px-4 text-right">
-                                    <div className="flex items-center justify-end gap-1.5">
-                                      <button
-                                        onClick={() => handleEditAdmin(adm)}
-                                        className="p-1.5 hover:bg-slate-100 text-blue-900 rounded-lg transition-colors cursor-pointer"
-                                        title="Edit admin properties"
-                                      >
-                                        <Edit3 className="w-3.5 h-3.5" />
-                                      </button>
-                                      {(currentAdmin?.role === 'Super Admin' || currentAdmin?.username?.toLowerCase() === 'kandorpo' || isAdminLoggedIn) && (
-                                        <button
-                                          onClick={() => handleDeleteAdmin(adm.id)}
-                                          className={`p-1.5 hover:bg-red-50 text-red-600 rounded-lg transition-colors cursor-pointer ${
-                                            currentAdmin?.id === adm.id ? 'opacity-30 cursor-not-allowed' : ''
-                                          }`}
-                                          disabled={currentAdmin?.id === adm.id}
-                                          title={currentAdmin?.id === adm.id ? "Cannot delete yourself" : "Delete account"}
-                                        >
-                                          <Trash2 className="w-3.5 h-3.5" />
-                                        </button>
-                                      )}
-                                    </div>
-                                  </td>
-                                </tr>
-                              ))}
-                            </tbody>
-                          </table>
-                        </div>
-                      </div>
+                      {(() => {
+                        const isSuperAdmin = currentAdmin?.role === 'Super Admin' || currentAdmin?.username?.toLowerCase() === 'kandorpo';
+                        const visibleAdmins = (admins || []).filter(adm => isSuperAdmin || (currentAdmin && adm.id === currentAdmin.id));
+                        return (
+                          <div className="space-y-3">
+                            <h5 className="font-bold text-slate-900 text-sm">
+                              Active Department Administrators ({visibleAdmins.length})
+                            </h5>
+                            <div className="border border-slate-200 rounded-2xl overflow-hidden bg-white">
+                              <table className="w-full text-left border-collapse">
+                                <thead>
+                                  <tr className="bg-slate-50 border-b border-slate-200 text-[10px] text-slate-500 uppercase tracking-wider font-bold">
+                                    <th className="py-3 px-4">Full Name & Email</th>
+                                    <th className="py-3 px-4">Username</th>
+                                    <th className="py-3 px-4">Role</th>
+                                    <th className="py-3 px-4">Status</th>
+                                    <th className="py-3 px-4">Last Login</th>
+                                    <th className="py-3 px-4 text-right">Actions</th>
+                                  </tr>
+                                </thead>
+                                <tbody className="divide-y divide-slate-100 text-xs text-slate-700">
+                                  {visibleAdmins.map((adm) => (
+                                    <tr key={adm.id} className="hover:bg-slate-50/50">
+                                      <td className="py-3 px-4">
+                                        <div className="font-bold text-slate-900">{adm.fullName}</div>
+                                        <div className="text-slate-500 text-[10px]">{adm.email}</div>
+                                      </td>
+                                      <td className="py-3 px-4 font-mono font-bold text-slate-600">{adm.username}</td>
+                                      <td className="py-3 px-4">
+                                        <span className={`px-2 py-0.5 rounded-full text-[9px] font-bold ${
+                                          adm.role === 'Super Admin' 
+                                            ? 'bg-purple-100 text-purple-800' 
+                                            : adm.role === 'HOD' 
+                                              ? 'bg-indigo-100 text-indigo-800' 
+                                              : 'bg-blue-100 text-blue-800'
+                                        }`}>
+                                          {adm.role}
+                                        </span>
+                                      </td>
+                                      <td className="py-3 px-4">
+                                        <span className={`px-2 py-0.5 rounded-full text-[9px] font-bold ${
+                                          adm.status === 'Active' ? 'bg-emerald-100 text-emerald-800' : 'bg-red-100 text-red-800'
+                                        }`}>
+                                          {adm.status}
+                                        </span>
+                                      </td>
+                                      <td className="py-3 px-4 text-slate-500 font-mono text-[10px]">
+                                        {adm.lastLogin || 'Never logged in'}
+                                      </td>
+                                      <td className="py-3 px-4 text-right">
+                                        <div className="flex items-center justify-end gap-1.5">
+                                          <button
+                                            onClick={() => handleEditAdmin(adm)}
+                                            className="p-1.5 hover:bg-slate-100 text-blue-900 rounded-lg transition-colors cursor-pointer"
+                                            title="Edit admin properties"
+                                          >
+                                            <Edit3 className="w-3.5 h-3.5" />
+                                          </button>
+                                          {(currentAdmin?.role === 'Super Admin' || currentAdmin?.username?.toLowerCase() === 'kandorpo' || isAdminLoggedIn) && (
+                                            <button
+                                              onClick={() => handleDeleteAdmin(adm.id)}
+                                              className={`p-1.5 hover:bg-red-50 text-red-600 rounded-lg transition-colors cursor-pointer ${
+                                                currentAdmin?.id === adm.id ? 'opacity-30 cursor-not-allowed' : ''
+                                              }`}
+                                              disabled={currentAdmin?.id === adm.id}
+                                              title={currentAdmin?.id === adm.id ? "Cannot delete yourself" : "Delete account"}
+                                            >
+                                              <Trash2 className="w-3.5 h-3.5" />
+                                            </button>
+                                          )}
+                                        </div>
+                                      </td>
+                                    </tr>
+                                  ))}
+                                </tbody>
+                              </table>
+                            </div>
+                          </div>
+                        );
+                      })()}
 
                     </div>
                   )}

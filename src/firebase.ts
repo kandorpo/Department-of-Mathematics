@@ -1,8 +1,15 @@
 import { initializeApp } from 'firebase/app';
-import { initializeFirestore, doc, onSnapshot, setDoc, getDoc, getDocFromServer } from 'firebase/firestore';
+import { initializeFirestore, doc, onSnapshot, setDoc, getDoc, getDocFromServer, setLogLevel } from 'firebase/firestore';
 import firebaseConfig from '../firebase-applet-config.json';
 
 export const app = initializeApp(firebaseConfig);
+
+// Silence Firestore internal network warning logs in iframe / offline sandbox mode
+try {
+  setLogLevel('silent');
+} catch (e) {
+  // Graceful fallback
+}
 
 // Safe Mock Auth to prevent bundle/registration issues since Firebase Auth is not used by this app
 export const auth = {
@@ -17,25 +24,32 @@ export const auth = {
 };
 
 // Initialize Firestore with custom databaseId if configured & force long polling for sandbox/iframe reliability
-const customDbId = firebaseConfig.firestoreDatabaseId || undefined;
+const customDbId = (firebaseConfig as any).databaseId || (firebaseConfig as any).firestoreDatabaseId || undefined;
 
-export const db = initializeFirestore(
-  app,
-  {
-    experimentalForceLongPolling: true,
-  },
-  customDbId
-);
+export const db = customDbId 
+  ? initializeFirestore(app, { experimentalForceLongPolling: true }, customDbId)
+  : initializeFirestore(app, { experimentalForceLongPolling: true });
 
 export const DOC_REF = doc(db, 'department_cms', 'master');
 
 // Validate Connection to Firestore (MANDATORY skill constraint)
 async function testConnection() {
+  if (typeof navigator !== 'undefined' && !navigator.onLine) {
+    console.warn("Firestore connection: Offline mode enabled via browser status.");
+    return;
+  }
   try {
-    await getDocFromServer(doc(db, 'test', 'connection'));
+    // Use a 1.5 second timeout race to prevent waiting for the standard 10 second timeout on unreachable environments
+    const checkPromise = getDocFromServer(doc(db, 'test', 'connection'));
+    const timeoutPromise = new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error('the client is offline (timeout)')), 1500)
+    );
+    await Promise.race([checkPromise, timeoutPromise]);
   } catch (error) {
-    if (error instanceof Error && error.message.includes('the client is offline')) {
-      console.error("Please check your Firebase configuration: client is offline.");
+    if (error instanceof Error && (error.message.includes('the client is offline') || error.message.includes('offline') || error.message.includes('reach') || error.message.includes('timeout'))) {
+      console.warn("Please check your Firebase configuration: client is offline.");
+    } else {
+      console.warn("Firestore connection check handled: operating in offline sandbox mode.", error);
     }
   }
 }

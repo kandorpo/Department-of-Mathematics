@@ -101,7 +101,7 @@ export const Navbar: React.FC<NavbarProps> = ({
               handleNavClick('#home');
             }}
             className="flex items-center gap-3 group text-left"
-            aria-label="Department of Mathematics Dudhnoi College Home"
+            aria-label={`Department of Mathematics ${DEPARTMENT_INFO.college || 'Dudhnoi College'} Home`}
           >
             {/* Academic Crest Emblem */}
             <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-lg bg-gradient-to-br from-blue-950 via-slate-900 to-blue-900 flex items-center justify-center text-white shadow-sm border border-blue-800/40 relative overflow-hidden group-hover:scale-105 transition-transform duration-200">
@@ -128,11 +128,11 @@ export const Navbar: React.FC<NavbarProps> = ({
             <div>
               <div className="flex items-center gap-1.5">
                 <span className="text-base sm:text-lg font-bold text-slate-900 tracking-tight font-heading group-hover:text-blue-950 transition-colors">
-                  Department of Mathematics
+                  {DEPARTMENT_INFO.name || 'Department of Mathematics'}
                 </span>
               </div>
               <p className="text-[11px] sm:text-xs text-slate-500 font-medium">
-                Dudhnoi College • Goalpara, Assam
+                {DEPARTMENT_INFO.college || 'Dudhnoi College'} • Goalpara, Assam
               </p>
             </div>
           </a>

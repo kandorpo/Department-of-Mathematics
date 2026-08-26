@@ -15,6 +15,7 @@ import {
   StudentResource,
   RoutineSlot,
   StudentGrievance,
+  FooterLink,
 } from '../types';
 
 export const DEPARTMENT_INFO = {
@@ -29,6 +30,7 @@ export const DEPARTMENT_INFO = {
   officeHours: 'Monday – Saturday: 9:00 AM – 4:30 PM (IST)',
   hodName: 'Dr. Bidyut Kalita',
   hodTitle: 'Assistant Professor & Head of the Department',
+  hodMessageHeading: 'Message from the Head of the Department',
   hodMessage: `Welcome to the Department of Mathematics at Dudhnoi College. For over five decades, our department has stood as a beacon of intellectual rigor and academic distinction in Lower Assam. We believe that mathematics is not merely a collection of formulas, but a profound universal language that sharpens analytical thinking, unlocks scientific discoveries, and models complex real-world phenomena. Under the NEP 2020 framework, we integrate traditional mathematical foundations with modern computational tools such as Python, SageMath, and LaTeX. We invite you to explore our vibrant academic community.`,
   vision: `To emerge as a premier center of mathematical education and research in the region, fostering analytical intellect, logical reasoning, and interdisciplinary competence among students from diverse socio-economic backgrounds.`,
   mission: [
@@ -70,6 +72,37 @@ export const DEPARTMENT_INFO = {
   welcomeTitle: 'Welcome to the Department of Mathematics',
   welcomeDescription: 'Established in 1972 alongside the founding of Dudhnoi College, the Department of Mathematics is dedicated to fostering deep conceptual understanding, analytical rigor, and mathematical innovation. We blend traditional mathematical proofs with modern scientific computing, empowering students to excel in higher education, research, and technical careers.',
   
+  // Footer Customization
+  footerTagline: 'Dedicated to academic distinction, foundational proofs, and computational problem-solving. Fostering analytical minds and scientific leadership under Gauhati University and NEP 2020.',
+  footerBadges: ['Affiliated to GU', 'NAAC Grade A', 'UGC 2(f) & 12(B)'],
+  footerDeskTitle: 'Department Desk',
+  footerAddress: 'Science Block, Dudhnoi College, Goalpara - 783124, Assam',
+  footerPhone: '+91 (03663) 281432',
+  footerEmail: 'mathematics@dudhnoicollege.ac.in',
+  footerCopyright: '© 2026 Department of Mathematics, Dudhnoi College. All Rights Reserved.',
+  footerQuickLinks: [
+    { id: 'fl-1', name: 'Home Overview', url: '#home' },
+    { id: 'fl-2', name: 'About Department', url: '#about' },
+    { id: 'fl-3', name: 'Faculty Directory', url: '#faculty' },
+    { id: 'fl-4', name: 'Undergraduate & PG Courses', url: '#courses' },
+    { id: 'fl-5', name: 'Research Thrust Areas', url: '#research' },
+    { id: 'fl-6', name: 'Upcoming Events & Seminars', url: '#events' },
+    { id: 'fl-7', name: 'Department Notices & Routine', url: '#notices' },
+    { id: 'fl-8', name: 'Student & Faculty Accolades', url: '#achievements' },
+    { id: 'fl-9', name: 'Photo & Magazine Gallery', url: '#gallery' },
+    { id: 'fl-10', name: 'Contact & Office Hours', url: '#contact' },
+  ] as FooterLink[],
+  footerAcademicLinks: [
+    { id: 'al-1', name: 'Dudhnoi College Official Portal', url: 'https://dudhnoicollege.ac.in', isExternal: true },
+    { id: 'al-2', name: 'Gauhati University Examination Portal', url: 'https://gauhati.ac.in', isExternal: true },
+    { id: 'al-3', name: 'Assam Academy of Mathematics (AAM)', url: 'https://aam.org.in', isExternal: true },
+    { id: 'al-4', name: 'National Board for Higher Mathematics (NBHM)', url: 'https://www.nbhm.dae.gov.in', isExternal: true },
+    { id: 'al-5', name: 'University Grants Commission (UGC)', url: 'https://ugc.gov.in', isExternal: true },
+    { id: 'al-6', name: 'SWAYAM / NPTEL Mathematics Courses', url: 'https://nptel.ac.in', isExternal: true },
+    { id: 'al-7', name: 'Ramanujan Mathematical Society', url: 'https://www.ramanujanmathsociety.org', isExternal: true },
+    { id: 'al-8', name: 'DST-SERB Mathematical Sciences', url: 'https://serb.gov.in', isExternal: true },
+  ] as FooterLink[],
+
   // Mathematical Foundations Showcase
   heroFoundations: {
     title: 'Mathematical Foundations',
@@ -915,141 +948,9 @@ export const NOTICES_DATA: NoticeItem[] = [
   }
 ];
 
-export const ACHIEVEMENTS_DATA: AchievementItem[] = [
-  {
-    id: 'ach-1',
-    title: 'IIT JAM 2026 Mathematics - All India Rank 142',
-    recipient: 'Bhargav Jyoti Das (Batch 2023-26)',
-    role: 'Student',
-    category: 'Exam Qualification',
-    year: '2026',
-    description: 'Secured AIR 142 in the national Joint Admission Test for Masters (IIT JAM Mathematics 2026) and qualified for admission into M.Sc. Mathematics & Computing at IIT Kharagpur.',
-    badgeText: 'AIR 142 • IIT JAM 2026',
-    image: 'https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?auto=format&fit=crop&q=80&w=600'
-  },
-  {
-    id: 'ach-2',
-    title: 'Gauhati University 1st Class 1st (Gold Medalist)',
-    recipient: 'Barsha Rani Rabha (Batch 2022-25)',
-    role: 'Student',
-    category: 'University Rank',
-    year: '2025',
-    description: 'Achieved the Top Rank (1st Class 1st Position with CGPA 9.48) in B.Sc. Mathematics Honors under Gauhati University, bringing immense laurels to Dudhnoi College.',
-    badgeText: 'Rank 1 • Gold Medal',
-    image: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=600'
-  },
-  {
-    id: 'ach-3',
-    title: 'CSIR-UGC NET Junior Research Fellowship (JRF)',
-    recipient: 'Manash Pratim Nath (Alumnus)',
-    role: 'Alumni',
-    category: 'Exam Qualification',
-    year: '2025',
-    description: 'Cleared the prestigious CSIR-UGC NET JRF with All India Rank 64 in Mathematical Sciences and was awarded the national doctoral fellowship at Indian Statistical Institute (ISI).',
-    badgeText: 'CSIR-NET JRF • AIR 64',
-    image: 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&q=80&w=600'
-  },
-  {
-    id: 'ach-4',
-    title: 'Best Research Paper Award at ASTEC State Science Congress',
-    recipient: 'Dr. Anamika Das & Student Team',
-    role: 'Faculty',
-    category: 'Academic Award',
-    year: '2025',
-    description: 'Awarded the Best Oral Paper Presentation in the Physical and Mathematical Sciences Section for their paper on "Nonlinear Mathematical Models of Vector-Borne Diseases in Northeast India".',
-    badgeText: 'Best Paper Award 2025',
-    image: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&q=80&w=600'
-  },
-  {
-    id: 'ach-5',
-    title: 'State Champion - Inter-College Mathematics Olympiad',
-    recipient: 'Dudhnoi College Mathematics Team',
-    role: 'Department',
-    category: 'Olympiad Rank',
-    year: '2024',
-    description: 'The college mathematics quiz and problem-solving delegation clinched 1st Place overall in the Assam Academy of Mathematics Inter-College State Championship Trophy.',
-    badgeText: '1st Place • State Trophy',
-    image: 'https://images.unsplash.com/photo-1511632765486-a01980e01a18?auto=format&fit=crop&q=80&w=600'
-  },
-  {
-    id: 'ach-6',
-    title: 'DST INSPIRE Fellowship Awardee',
-    recipient: 'Juri Kalita (B.Sc. Mathematics)',
-    role: 'Student',
-    category: 'Research Fellowship',
-    year: '2024',
-    description: 'Awarded the prestigious Department of Science & Technology (DST) INSPIRE Scholarship for Higher Education (SHE) by the Government of India for academic excellence.',
-    badgeText: 'DST INSPIRE Scholar',
-    image: 'https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&q=80&w=600'
-  }
-];
+export const ACHIEVEMENTS_DATA: AchievementItem[] = [];
 
-export const GALLERY_DATA: GalleryItem[] = [
-  {
-    id: 'gal-1',
-    title: 'Ramanujan National Mathematics Day Celebrations',
-    category: 'Math Day',
-    image: 'https://images.unsplash.com/photo-1509228468518-180dd4864904?auto=format&fit=crop&q=80&w=1000',
-    caption: 'Faculty and students lighting the ceremonial lamp before the keynote symposium on National Mathematics Day.',
-    date: 'December 22, 2025'
-  },
-  {
-    id: 'gal-2',
-    title: 'Computer Lab Session: Numerical Methods with Python',
-    category: 'Classroom',
-    image: 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&q=80&w=1000',
-    caption: 'B.Sc. 4th Semester students performing numerical simulations and graph plotting in the computing laboratory.',
-    date: 'October 14, 2025'
-  },
-  {
-    id: 'gal-3',
-    title: 'Release of Departmental Annual Magazine "Ganit Probha" Vol. XI',
-    category: 'Magazine',
-    image: 'https://images.unsplash.com/photo-1544717305-2782549b5136?auto=format&fit=crop&q=80&w=1000',
-    caption: 'Principal Dr. Lalit Chandra Rabha and HOD Dr. Mukul Kalita unveiling the 11th edition of the departmental wall magazine.',
-    date: 'September 05, 2025'
-  },
-  {
-    id: 'gal-4',
-    title: 'State Level Mathematics Olympiad Examination Center',
-    category: 'Department Events',
-    image: 'https://images.unsplash.com/photo-1606326608606-aa0b62935f2b?auto=format&fit=crop&q=80&w=1000',
-    caption: 'Over 180 school and college students appearing for the annual Olympiad test conducted by Assam Academy of Mathematics at Dudhnoi center.',
-    date: 'November 12, 2025'
-  },
-  {
-    id: 'gal-5',
-    title: 'National Workshop on Differential Equations & Applications',
-    category: 'Seminars',
-    image: 'https://images.unsplash.com/photo-1475721027785-f74eccf877e2?auto=format&fit=crop&q=80&w=1000',
-    caption: 'Interactive technical session with delegates and resource persons in the college auditorium.',
-    date: 'March 20, 2025'
-  },
-  {
-    id: 'gal-6',
-    title: 'Ramanujan Math Club Problem-Solving Circle & Puzzles',
-    category: 'Student Activities',
-    image: 'https://images.unsplash.com/photo-1522202176988-66273c2fd55f?auto=format&fit=crop&q=80&w=1000',
-    caption: 'Undergraduate student members brainstorming challenging Olympiad proofs and geometric constructions.',
-    date: 'February 18, 2026'
-  },
-  {
-    id: 'gal-7',
-    title: 'Classroom Blackboard Proofs & Mathematical Rigor',
-    category: 'Classroom',
-    image: 'https://images.unsplash.com/photo-1580582932707-520aed937b7b?auto=format&fit=crop&q=80&w=1000',
-    caption: 'An in-depth lecture on Cauchy-Riemann equations and analytic function conformal mapping.',
-    date: 'January 24, 2026'
-  },
-  {
-    id: 'gal-8',
-    title: 'Alumni Felicitation & Farewell Ceremony',
-    category: 'Department Events',
-    image: 'https://images.unsplash.com/photo-1523240795612-9a054b0db644?auto=format&fit=crop&q=80&w=1000',
-    caption: 'Celebrating outgoing B.Sc. Mathematics Major graduates and felicitating IIT JAM qualifiers.',
-    date: 'May 30, 2025'
-  }
-];
+export const GALLERY_DATA: GalleryItem[] = [];
 
 export const FAMOUS_QUOTES = [
   {
@@ -1074,208 +975,9 @@ export const FAMOUS_QUOTES = [
   }
 ];
 
-export const DEFAULT_DEPARTMENT_STUDENTS: DepartmentStudent[] = [
-  {
-    id: 'dept-stu-01',
-    fullName: 'Ankur Jyoti Rabha',
-    rollNo: 'US-241-102-0042',
-    guRegNo: 'GU24098124',
-    courseProgram: 'B.Sc. Mathematics (Honours/Major)',
-    selectiveCourse: 'MAT-MAJ-201: Ordinary Differential Equations & Calculus',
-    semester: 'B.Sc. 3rd Semester (Major)',
-    batch: '2024 - 2028',
-    email: 'ankur.rabha@student.dudhnoicollege.ac.in',
-    phone: '+91 94352 11984',
-    status: 'Active',
-    mentorName: 'Dr. Bidyut Kalita (HOD)',
-    admissionYear: '2024'
-  },
-  {
-    id: 'dept-stu-02',
-    fullName: 'Priyanka Das',
-    rollNo: 'US-231-102-0018',
-    guRegNo: 'GU23087611',
-    courseProgram: 'B.Sc. Mathematics (Honours/Major)',
-    selectiveCourse: 'MAT-MAJ-301: Linear Algebra & Matrix Theory',
-    semester: 'B.Sc. 5th Semester (Major)',
-    batch: '2023 - 2027',
-    email: 'priyanka.das@student.dudhnoicollege.ac.in',
-    phone: '+91 98640 45219',
-    status: 'Active',
-    mentorName: 'Dr. Mridul Dutta',
-    admissionYear: '2023'
-  },
-  {
-    id: 'dept-stu-03',
-    fullName: 'Himashree Nath',
-    rollNo: 'US-241-102-0015',
-    guRegNo: 'GU24098105',
-    courseProgram: 'B.Sc. Mathematics (Honours/Major)',
-    selectiveCourse: 'MAT-MAJ-101: Calculus & Analytical Geometry',
-    semester: 'B.Sc. 1st Semester (Major)',
-    batch: '2024 - 2028',
-    email: 'himashree.nath@student.dudhnoicollege.ac.in',
-    phone: '+91 91012 34567',
-    status: 'Active',
-    mentorName: 'Dr. Mukul Chandra Kalita',
-    admissionYear: '2024'
-  },
-  {
-    id: 'dept-stu-04',
-    fullName: 'Rupjyoti Rabha',
-    rollNo: 'US-241-102-0088',
-    guRegNo: 'GU24098178',
-    courseProgram: 'B.Sc. Mathematics (Honours/Major)',
-    selectiveCourse: 'MAT-MAJ-101: Calculus & Analytical Geometry',
-    semester: 'B.Sc. 1st Semester (Major)',
-    batch: '2024 - 2028',
-    email: 'rupjyoti.rabha@student.dudhnoicollege.ac.in',
-    phone: '+91 97061 98234',
-    status: 'Active',
-    mentorName: 'Dr. Pranab Jyoti Rabha',
-    admissionYear: '2024'
-  },
-  {
-    id: 'dept-stu-05',
-    fullName: 'Manash Pratim Sarma',
-    rollNo: 'US-231-102-0033',
-    guRegNo: 'GU23087632',
-    courseProgram: 'B.Sc. Mathematics (Honours/Major)',
-    selectiveCourse: 'MAT-MAJ-302: Complex Analysis & Metric Spaces',
-    semester: 'B.Sc. 5th Semester (Major)',
-    batch: '2023 - 2027',
-    email: 'manash.sarma@student.dudhnoicollege.ac.in',
-    phone: '+91 88765 43210',
-    status: 'Active',
-    mentorName: 'Dr. Dipankar Sarma',
-    admissionYear: '2023'
-  },
-  {
-    id: 'dept-stu-06',
-    fullName: 'Jonali Boro',
-    rollNo: 'US-241-102-0104',
-    guRegNo: 'GU24098201',
-    courseProgram: 'B.Sc. Mathematics (Minor)',
-    selectiveCourse: 'MAT-MIN-101: Principles of Mathematics & Elementary Calculus',
-    semester: 'B.Sc. 1st Semester (Minor)',
-    batch: '2024 - 2028',
-    email: 'jonali.boro@student.dudhnoicollege.ac.in',
-    phone: '+91 94358 76543',
-    status: 'Active',
-    mentorName: 'Dr. Anamika Das',
-    admissionYear: '2024'
-  },
-  {
-    id: 'dept-stu-07',
-    fullName: 'Debasish Hajong',
-    rollNo: 'US-241-102-0112',
-    guRegNo: 'GU24098215',
-    courseProgram: 'B.Sc. Mathematics (Minor)',
-    selectiveCourse: 'MAT-MIN-201: Differential Equations & Linear Algebra',
-    semester: 'B.Sc. 3rd Semester (Minor)',
-    batch: '2024 - 2028',
-    email: 'debasish.hajong@student.dudhnoicollege.ac.in',
-    phone: '+91 86381 23456',
-    status: 'Active',
-    mentorName: 'Mr. Kalyan Jyoti Nath',
-    admissionYear: '2024'
-  },
-  {
-    id: 'dept-stu-08',
-    fullName: 'Dipali Ray',
-    rollNo: 'US-231-102-0056',
-    guRegNo: 'GU23087678',
-    courseProgram: 'B.Sc. Mathematics (Minor)',
-    selectiveCourse: 'MAT-MIN-301: Probability, Statistics & Vector Analysis',
-    semester: 'B.Sc. 5th Semester (Minor)',
-    batch: '2023 - 2027',
-    email: 'dipali.ray@student.dudhnoicollege.ac.in',
-    phone: '+91 99540 12345',
-    status: 'Active',
-    mentorName: 'Dr. Hirendra Nath Roy',
-    admissionYear: '2023'
-  },
-  {
-    id: 'dept-stu-09',
-    fullName: 'Bikash Sangma',
-    rollNo: 'US-241-102-0145',
-    guRegNo: 'GU24098254',
-    courseProgram: 'Value Added & SEC Computing',
-    selectiveCourse: 'MAT-SEC-301: Scientific Computing with Python & LaTeX',
-    semester: 'B.Sc. 3rd Semester (Major)',
-    batch: '2024 - 2028',
-    email: 'bikash.sangma@student.dudhnoicollege.ac.in',
-    phone: '+91 98590 65432',
-    status: 'Active',
-    mentorName: 'Dr. Mridul Dutta',
-    admissionYear: '2024'
-  },
-  {
-    id: 'dept-stu-10',
-    fullName: 'Tanushree Kalita',
-    rollNo: 'PG-251-102-0008',
-    guRegNo: 'GU21045230',
-    courseProgram: 'M.Sc. Mathematics',
-    selectiveCourse: 'MAT-MSC-101: Advanced Topology & Functional Analysis',
-    semester: 'M.Sc. 1st Semester',
-    batch: '2025 - 2027',
-    email: 'tanushree.kalita@student.dudhnoicollege.ac.in',
-    phone: '+91 94012 98765',
-    status: 'Active',
-    mentorName: 'Dr. Bidyut Kalita (HOD)',
-    admissionYear: '2025'
-  },
-  {
-    id: 'dept-stu-11',
-    fullName: 'Kankan Jyoti Rabha',
-    rollNo: 'US-221-102-0007',
-    guRegNo: 'GU22076123',
-    courseProgram: 'B.Sc. Mathematics (Honours/Major)',
-    selectiveCourse: 'MAT-MAJ-401: Differential Geometry & Tensor Calculus',
-    semester: 'Graduated (Alumni)',
-    batch: '2022 - 2025',
-    email: 'kankan.rabha@alumni.dudhnoicollege.ac.in',
-    phone: '+91 94350 43210',
-    status: 'Alumni',
-    mentorName: 'Dr. Bidyut Kalita (HOD)',
-    admissionYear: '2022'
-  }
-];
+export const DEFAULT_DEPARTMENT_STUDENTS: DepartmentStudent[] = [];
 
-export const DEFAULT_STUDENT_PROFILES: StudentProfile[] = [
-  {
-    id: 'stu-101',
-    fullName: 'Ankur Jyoti Rabha',
-    rollNo: 'US-241-102-0042',
-    guRegNo: 'GU24098124',
-    email: 'ankur.rabha@student.dudhnoicollege.ac.in',
-    phone: '+91 94352 11984',
-    semester: 'B.Sc. 3rd Semester (Major)',
-    program: 'B.Sc. Mathematics (Honours/Major)',
-    batch: '2024 - 2028',
-    avatar: 'https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?auto=format&fit=crop&q=80&w=400',
-    bio: 'Undergraduate student passionate about Analytic Number Theory and Computational Python. Core volunteer in the Ramanujan Math Club.',
-    mentorName: 'Dr. Bidyut Kalita (HOD)',
-    interests: ['Number Theory', 'Python Algorithms', 'Abstract Algebra'],
-    registeredDate: 'August 12, 2024'
-  },
-  {
-    id: 'stu-102',
-    fullName: 'Priyanka Das',
-    rollNo: 'US-231-102-0018',
-    guRegNo: 'GU23087611',
-    email: 'priyanka.das@student.dudhnoicollege.ac.in',
-    phone: '+91 98640 45219',
-    semester: 'B.Sc. 5th Semester (Major)',
-    program: 'B.Sc. Mathematics (Honours/Major)',
-    batch: '2023 - 2027',
-    avatar: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&q=80&w=400',
-    bio: 'Aspiring researcher working on Fluid Dynamics boundary layers and LaTeX documentation for departmental seminar series.',
-    mentorName: 'Dr. Mridul Dutta',
-    interests: ['Fluid Dynamics', 'Differential Equations', 'Numerical Analysis'],
-    registeredDate: 'July 28, 2023'
-  }
-];
+export const DEFAULT_STUDENT_PROFILES: StudentProfile[] = [];
 
 export const STUDENT_RESOURCES: StudentResource[] = [
   {
@@ -1387,38 +1089,7 @@ export const DEFAULT_ROUTINE_SLOTS: RoutineSlot[] = [
   }
 ];
 
-export const DEFAULT_GRIEVANCES: StudentGrievance[] = [
-  {
-    id: 'grv-101',
-    refNo: 'GRV-4019',
-    studentName: 'Ankur Jyoti Rabha',
-    rollNo: 'US-241-102-0042',
-    semester: 'B.Sc. 3rd Semester (Major)',
-    course: 'B.Sc. Mathematics (Honours/Major)',
-    mentorName: 'Dr. Bidyut Kalita (HOD)',
-    queryType: 'Academic Guidance',
-    message: 'Requesting permission and guidance for using the Department High-Performance Computing Workstation for Python SageMath simulation.',
-    submittedAt: 'August 16, 2026',
-    status: 'Resolved',
-    adminResponse: 'Access approved. Please report to Dr. Mridul Dutta during Computer Lab hours on Tuesday and Thursday 1:00 PM.',
-    responseDate: 'August 17, 2026'
-  },
-  {
-    id: 'grv-102',
-    refNo: 'GRV-4020',
-    studentName: 'Priyanka Das',
-    rollNo: 'US-231-102-0018',
-    semester: 'B.Sc. 5th Semester (Major)',
-    course: 'B.Sc. Mathematics (Honours/Major)',
-    mentorName: 'Dr. Mridul Dutta',
-    queryType: 'Project / Guide Allocation',
-    message: 'Submitted final synopsis proposal on Fluid Boundary Layer Discretization for approval under 5th Sem Major project work.',
-    submittedAt: 'August 18, 2026',
-    status: 'In Review',
-    adminResponse: 'Synopsis reviewed by departmental committee. Minor revisions suggested for section 3. Contact mentor on Friday.',
-    responseDate: 'August 19, 2026'
-  }
-];
+export const DEFAULT_GRIEVANCES: StudentGrievance[] = [];
 
 export const DEFAULT_BLOG_POSTS: BlogPost[] = [
   {

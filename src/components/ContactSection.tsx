@@ -156,7 +156,7 @@ export const ContactSection: React.FC = () => {
               <div className="p-3.5 bg-slate-900 text-white flex items-center justify-between text-xs">
                 <div className="flex items-center gap-2">
                   <Navigation className="w-3.5 h-3.5 text-amber-400" />
-                  <span className="font-bold">Dudhnoi College Campus Map</span>
+                  <span className="font-bold">{DEPARTMENT_INFO.college || 'Dudhnoi College'} Campus Map</span>
                 </div>
                 <span className="text-[10px] font-mono text-slate-400">25.9868° N, 90.7302° E</span>
               </div>
@@ -172,7 +172,7 @@ export const ContactSection: React.FC = () => {
                     Science Block (Ground Floor)
                   </div>
                   <p className="text-[11px] text-slate-500 max-w-xs">
-                    Dudhnoi College, NH-17 (Goalpara - Guwahati Highway), Goalpara, Assam
+                    {DEPARTMENT_INFO.college || 'Dudhnoi College'}, NH-17 (Goalpara - Guwahati Highway), Goalpara, Assam
                   </p>
                   <a
                     href="https://maps.google.com/?q=Dudhnoi+College+Goalpara+Assam"
@@ -209,7 +209,7 @@ export const ContactSection: React.FC = () => {
                     <span>Inquiry Submitted Successfully!</span>
                   </div>
                   <p className="text-xs leading-relaxed text-emerald-800">
-                    Thank you for contacting the Department of Mathematics, Dudhnoi College. Your inquiry ticket <strong>#MATH-INQ-{Math.floor(1000 + Math.random() * 9000)}</strong> has been forwarded to the departmental coordinator. We will reply to your registered email promptly.
+                    Thank you for contacting the Department of Mathematics, {DEPARTMENT_INFO.college || 'Dudhnoi College'}. Your inquiry ticket <strong>#MATH-INQ-{Math.floor(1000 + Math.random() * 9000)}</strong> has been forwarded to the departmental coordinator. We will reply to your registered email promptly.
                   </p>
                   <button
                     onClick={() => setIsSubmitted(false)}
