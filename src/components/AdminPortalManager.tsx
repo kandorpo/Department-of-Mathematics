@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { processLogoImage } from '../utils/imageHelper';
 import {
   Users,
   Search,
@@ -994,7 +995,7 @@ export const AdminPortalManager: React.FC = () => {
               <div>
                 <div className="flex items-center justify-between mb-1">
                   <label className="block font-bold text-slate-700">Website Logo URL</label>
-                  <span className="text-[10px] font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">Auto-Scaled</span>
+                  <span className="text-[10px] font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">Auto BG Removal & Scaled</span>
                 </div>
                 <input
                   type="text"
@@ -1005,20 +1006,36 @@ export const AdminPortalManager: React.FC = () => {
                 />
 
                 {generalForm.logoUrl && (
-                  <div className="mb-2 p-2 bg-slate-50 border border-slate-200 rounded-xl flex items-center justify-between gap-3">
+                  <div className="mb-2 p-2 bg-slate-50 border border-slate-200 rounded-xl flex items-center justify-between gap-2">
                     <div className="flex items-center gap-2 overflow-hidden">
                       <div className="w-9 h-9 rounded bg-white border border-slate-200 p-0.5 flex items-center justify-center shrink-0">
                         <img src={generalForm.logoUrl} alt="Logo" className="w-full h-full object-contain" referrerPolicy="no-referrer" />
                       </div>
                       <span className="text-xs font-semibold text-slate-700 truncate">Current Logo</span>
                     </div>
-                    <button
-                      type="button"
-                      onClick={() => setGeneralForm({ ...generalForm, logoUrl: '' })}
-                      className="text-xs text-red-600 font-semibold hover:underline"
-                    >
-                      Clear
-                    </button>
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          showStatus('Removing logo background and cropping emblem...');
+                          processLogoImage(generalForm.logoUrl, (cleaned) => {
+                            setGeneralForm((prev) => ({ ...prev, logoUrl: cleaned }));
+                            showStatus('Logo background removed & cropped!');
+                          }, { maxDim: 360, removeBackground: true });
+                        }}
+                        className="text-xs text-blue-900 font-semibold px-2 py-1 rounded bg-blue-50 hover:bg-blue-100 flex items-center gap-1 transition-colors"
+                      >
+                        <Sparkles className="w-3 h-3 text-blue-900" />
+                        <span>Remove BG</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setGeneralForm({ ...generalForm, logoUrl: '' })}
+                        className="text-xs text-red-600 font-semibold hover:underline"
+                      >
+                        Clear
+                      </button>
+                    </div>
                   </div>
                 )}
 
@@ -1031,54 +1048,16 @@ export const AdminPortalManager: React.FC = () => {
                     onChange={(e) => {
                       const file = e.target.files?.[0];
                       if (!file) return;
-                      const reader = new FileReader();
-                      reader.onload = (ev) => {
-                        const src = ev.target?.result as string;
-                        if (!src) return;
-                        const img = new Image();
-                        img.onload = () => {
-                          const canvas = document.createElement('canvas');
-                          const maxDim = 360;
-                          let width = img.width;
-                          let height = img.height;
-                          if (width > height) {
-                            if (width > maxDim) {
-                              height = Math.round(height * (maxDim / width));
-                              width = maxDim;
-                            }
-                          } else {
-                            if (height > maxDim) {
-                              width = Math.round(width * (maxDim / height));
-                              height = maxDim;
-                            }
-                          }
-                          canvas.width = width;
-                          canvas.height = height;
-                          const ctx = canvas.getContext('2d');
-                          if (ctx) {
-                            ctx.imageSmoothingEnabled = true;
-                            ctx.imageSmoothingQuality = 'high';
-                            const isPng = file.type === 'image/png' || file.type === 'image/svg+xml' || file.type === 'image/webp';
-                            if (!isPng) {
-                              ctx.fillStyle = '#FFFFFF';
-                              ctx.fillRect(0, 0, width, height);
-                            } else {
-                              ctx.clearRect(0, 0, width, height);
-                            }
-                            ctx.drawImage(img, 0, 0, width, height);
-                            const resized = canvas.toDataURL(isPng ? 'image/png' : 'image/jpeg', isPng ? undefined : 0.85);
-                            setGeneralForm((prev) => ({ ...prev, logoUrl: resized }));
-                            showStatus('Logo uploaded & auto-resized to optimal scale.');
-                          }
-                        };
-                        img.src = src;
-                      };
-                      reader.readAsDataURL(file);
+                      showStatus('Uploading, removing background & auto-scaling logo...');
+                      processLogoImage(file, (dataUrl) => {
+                        setGeneralForm((prev) => ({ ...prev, logoUrl: dataUrl }));
+                        showStatus('Logo uploaded, background keyed out & auto-resized!');
+                      }, { maxDim: 360, removeBackground: true });
                     }}
                   />
-                  <label htmlFor="portal-logo-upload" className="px-3 py-1.5 bg-slate-200 hover:bg-slate-300 text-slate-800 rounded-lg text-xs font-bold cursor-pointer transition-colors inline-flex items-center gap-1.5">
-                    <Upload className="w-3.5 h-3.5 text-blue-900" />
-                    <span>Upload & Auto-Resize Logo</span>
+                  <label htmlFor="portal-logo-upload" className="px-3 py-1.5 bg-blue-900 hover:bg-blue-950 text-white rounded-lg text-xs font-bold cursor-pointer transition-colors inline-flex items-center gap-1.5 shadow-xs">
+                    <Upload className="w-3.5 h-3.5" />
+                    <span>Upload & Auto-Remove BG Logo</span>
                   </label>
                 </div>
               </div>

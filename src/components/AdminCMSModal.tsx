@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { hashPassword } from '../utils/hashHelper';
+import { processLogoImage } from '../utils/imageHelper';
 import {
   X,
   Lock,
@@ -241,6 +242,11 @@ export const AdminCMSModal: React.FC = () => {
     callback: (dataUrl: string) => void,
     options?: { maxDim?: number; isLogo?: boolean }
   ) => {
+    if (options?.isLogo) {
+      processLogoImage(file, callback, { maxDim: options.maxDim || 360, removeBackground: true });
+      return;
+    }
+
     const reader = new FileReader();
     reader.onload = (e) => {
       const src = e.target?.result as string;
@@ -1188,7 +1194,7 @@ export const AdminCMSModal: React.FC = () => {
                       <div className="flex items-center justify-between mb-2">
                         <label className="block font-bold text-slate-700">Logo Image</label>
                         <span className="text-[10px] font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
-                          Auto-Adjusted Size
+                          Auto BG Removal & Scaling
                         </span>
                       </div>
                       <input
@@ -1200,7 +1206,7 @@ export const AdminCMSModal: React.FC = () => {
                       />
 
                       {generalForm.logoUrl && (
-                        <div className="mb-2 p-2 bg-slate-100 border border-slate-200 rounded-xl flex items-center justify-between gap-3">
+                        <div className="mb-2 p-2 bg-slate-100 border border-slate-200 rounded-xl flex items-center justify-between gap-2">
                           <div className="flex items-center gap-3 overflow-hidden">
                             <div className="w-12 h-12 rounded-lg bg-white border border-slate-200 p-1 flex items-center justify-center shrink-0 shadow-xs">
                               <img 
@@ -1212,21 +1218,40 @@ export const AdminCMSModal: React.FC = () => {
                             </div>
                             <div className="min-w-0">
                               <p className="text-xs font-bold text-slate-800 truncate">Logo Active</p>
-                              <p className="text-[10px] text-slate-500">Auto-scaled & fitted with aspect ratio preservation</p>
+                              <p className="text-[10px] text-slate-500">Auto-scaled & background keying enabled</p>
                             </div>
                           </div>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              const updatedForm = { ...generalForm, logoUrl: '' };
-                              setGeneralForm(updatedForm);
-                              updateDepartmentInfo(updatedForm);
-                              showStatus('Logo removed.');
-                            }}
-                            className="text-xs text-red-600 hover:text-red-700 font-semibold px-2 py-1 rounded bg-red-50 hover:bg-red-100 transition-colors"
-                          >
-                            Remove
-                          </button>
+                          <div className="flex items-center gap-1.5 shrink-0">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                showStatus('Removing logo background and cropping content...');
+                                processLogoImage(generalForm.logoUrl, (cleaned) => {
+                                  const updatedForm = { ...generalForm, logoUrl: cleaned };
+                                  setGeneralForm(updatedForm);
+                                  updateDepartmentInfo(updatedForm);
+                                  showStatus('Logo background removed & content cropped successfully!');
+                                }, { maxDim: 360, removeBackground: true });
+                              }}
+                              className="text-xs text-blue-900 font-semibold px-2 py-1 rounded bg-blue-50 hover:bg-blue-100 transition-colors inline-flex items-center gap-1"
+                              title="Key out solid background and auto-trim image margins"
+                            >
+                              <Sparkles className="w-3 h-3 text-blue-900" />
+                              <span>Remove BG</span>
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const updatedForm = { ...generalForm, logoUrl: '' };
+                                setGeneralForm(updatedForm);
+                                updateDepartmentInfo(updatedForm);
+                                showStatus('Logo removed.');
+                              }}
+                              className="text-xs text-red-600 hover:text-red-700 font-semibold px-2 py-1 rounded bg-red-50 hover:bg-red-100 transition-colors"
+                            >
+                              Remove
+                            </button>
+                          </div>
                         </div>
                       )}
 
